@@ -58,7 +58,8 @@ func newParallelReader(readers []io.ReaderAt, e Erasure, offset, totalLength int
 		b = globalBytePoolCap.Load().Get()
 		// Seed the buffers.
 		for i := range bufs {
-			bufs[i] = b[i*shardSize : (i+1)*shardSize]
+			// Keep each shard's capacity separate from its neighbors.
+			bufs[i] = b[i*shardSize : (i+1)*shardSize : (i+1)*shardSize]
 		}
 	}
 
@@ -69,7 +70,7 @@ func newParallelReader(readers []io.ReaderAt, e Erasure, offset, totalLength int
 		offset:        (offset / e.blockSize) * e.ShardSize(),
 		shardSize:     e.ShardSize(),
 		shardFileSize: e.ShardFileSize(totalLength),
-		buf:           make([][]byte, len(readers)),
+		buf:           bufs,
 		readerToBuf:   r2b,
 		stashBuffer:   b,
 	}

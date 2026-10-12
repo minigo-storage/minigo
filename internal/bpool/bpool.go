@@ -18,6 +18,8 @@
 package bpool
 
 import (
+	"sync/atomic"
+
 	"github.com/klauspost/reedsolomon"
 )
 
@@ -26,6 +28,7 @@ type BytePoolCap struct {
 	c    chan []byte
 	w    int
 	wcap int
+	used atomic.Bool
 }
 
 // NewBytePoolCap creates a new BytePool bounded to the given maxSize, with new
@@ -59,6 +62,11 @@ func (bp *BytePoolCap) Populate() {
 func (bp *BytePoolCap) Get() (b []byte) {
 	if bp == nil {
 		return nil
+	}
+	// Only write on the first use of a maintenance interval. Hot requests use
+	// a shared atomic load rather than contending on a counter or timestamp.
+	if !bp.used.Load() {
+		bp.used.Store(true)
 	}
 	select {
 	case b = <-bp.c:

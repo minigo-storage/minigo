@@ -90,30 +90,15 @@ func newErasureServerPools(ctx context.Context, endpointServerPools EndpointServ
 		}
 	)
 
-	// Maximum number of reusable buffers per node at any given point in time.
-	n := uint64(1024) // single node single/multiple drives set this to 1024 entries
-
-	if globalIsDistErasure {
-		n = 2048
+	// Honor an explicit --memlimit as well as the host/container budget.
+	budget := availableMemory()
+	if globalServerCtxt.MemLimit > 0 {
+		budget = min(budget, globalServerCtxt.MemLimit)
 	}
+	n := bytePoolCapacity(budget, globalIsDistErasure, globalIsCICD || strconv.IntSize == 32)
 
-	// Avoid allocating more than half of the available memory
-	if maxN := availableMemory() / (blockSizeV2 * 2); n > maxN {
-		n = maxN
-	}
-
-	if globalIsCICD || strconv.IntSize == 32 {
-		n = 256 // 256MiB for CI/CD environments is sufficient or on 32bit platforms.
-	}
-
-	// Initialize byte pool once for all sets, bpool size is set to
-	// setCount * setDriveCount with each memory upto blockSizeV2.
+	// Initialize one lazily populated pool for all sets.
 	buffers := bpool.NewBytePoolCap(n, blockSizeV2, blockSizeV2*2)
-	if n >= 16384 {
-		// pre-populate buffers only n >= 16384 which is (32Gi/2Mi)
-		// for all setups smaller than this avoid pre-alloc.
-		buffers.Populate()
-	}
 	globalBytePoolCap.Store(buffers)
 
 	var localDrives []StorageAPI

@@ -1037,6 +1037,8 @@ func serverMain(ctx *cli.Context) {
 		}
 	}()
 
+	go maintainBytePool(GlobalContext)
+
 	go func() {
 		if globalEnableSyncBoot {
 			defer bootstrapTrace("unfreezeServices", unfreezeServices)

@@ -95,6 +95,10 @@ Minigo architectures have separate executable smoke tests.
 [Completed local validation](docs/validation.md) records the final image IDs,
 passing same-volume result, browser checks, security assessments and scope.
 
+[Performance work](docs/performance.md) records measured allocation and hashing
+improvements, idle buffer-cache behavior, and the listing experiment deferred
+because it slowed larger scans.
+
 This is a compatibility baseline with a substantive single-volume acceptance
 suite, not proof of every deployment or failure mode. Distributed upgrades,
 disk-loss/healing, KMS, remote replication and production workload qualification

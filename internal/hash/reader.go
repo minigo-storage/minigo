@@ -147,7 +147,12 @@ func newReader(ctx context.Context, src io.Reader, size int64, md5Hex, sha256Hex
 		}
 
 		r.checksum = MD5
-		r.contentSHA256 = SHA256
+		if len(SHA256) != 0 {
+			r.contentSHA256 = SHA256
+			if r.sha256 == nil {
+				r.sha256 = sha256.New()
+			}
+		}
 		if r.size < 0 && size >= 0 {
 			r.src = etag.Wrap(ioutil.HardLimitReader(r.src, size), r.src)
 			r.size = size
@@ -247,7 +252,13 @@ func (r *Reader) AddNonTrailingChecksum(cs *Checksum, ignoreValue bool) error {
 		return nil
 	}
 
-	r.contentHasher = cs.Type.Hasher()
+	if cs.Type.Base() == ChecksumSHA256 && r.sha256 != nil && r.bytesRead == 0 {
+		// The signed payload digest and S3 checksum cover identical bytes.
+		// A checksum added after reading must retain its own, shorter stream.
+		r.contentHasher = r.sha256
+	} else {
+		r.contentHasher = cs.Type.Hasher()
+	}
 	if r.contentHasher == nil {
 		return ErrInvalidChecksum
 	}
@@ -271,7 +282,9 @@ func (r *Reader) Read(p []byte) (int, error) {
 		r.sha256.Write(p[:n])
 	}
 	if r.contentHasher != nil {
-		r.contentHasher.Write(p[:n])
+		if r.contentHasher != r.sha256 {
+			r.contentHasher.Write(p[:n])
+		}
 	} else if r.ServerSideHasher != nil {
 		r.ServerSideHasher.Write(p[:n])
 	}
@@ -288,11 +301,13 @@ func (r *Reader) Read(p []byte) (int, error) {
 			}
 		}
 
+		var sha256Sum []byte
 		if r.sha256 != nil {
-			if sum := r.sha256.Sum(nil); !bytes.Equal(r.contentSHA256, sum) {
+			sha256Sum = r.sha256.Sum(nil)
+			if !bytes.Equal(r.contentSHA256, sha256Sum) {
 				return n, SHA256Mismatch{
 					ExpectedSHA256:   hex.EncodeToString(r.contentSHA256),
-					CalculatedSHA256: hex.EncodeToString(sum),
+					CalculatedSHA256: hex.EncodeToString(sha256Sum),
 				}
 			}
 		}
@@ -305,7 +320,11 @@ func (r *Reader) Read(p []byte) (int, error) {
 					return 0, ChecksumMismatch{Got: r.contentHash.Encoded}
 				}
 			}
-			if sum := r.contentHasher.Sum(nil); !bytes.Equal(r.contentHash.Raw, sum) {
+			sum := sha256Sum
+			if r.contentHasher != r.sha256 {
+				sum = r.contentHasher.Sum(nil)
+			}
+			if !bytes.Equal(r.contentHash.Raw, sum) {
 				err := ChecksumMismatch{
 					Want: r.contentHash.Encoded,
 					Got:  base64.StdEncoding.EncodeToString(sum),
