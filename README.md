@@ -1,77 +1,127 @@
 # Minigo
 
-A new object store written in Go, with the goal of being a 1:1 replacement for
-MinIO on Linux amd64 and arm64. This repository currently contains the project
-scaffold and an unchanged local MinIO reference, including its full history,
-tests and fixtures. The independent Minigo server is not implemented yet.
+Minigo is a local Go fork of MinIO with an expanded React/shadcn management
+console. It retains the MinIO storage engine, disk formats, S3/admin protocols,
+`mc` integration, server flags and `MINIO_*` configuration. Security fixes and
+their compatibility effects are listed in [security notes](docs/minigo-security.md).
 
-## Layout
+The separate `reference/minio/` checkout remains unchanged, with upstream history,
+tests and fixtures. Neither checkout has a remote. Images are built and loaded
+locally; there is no registry push or publishing workflow.
 
-- `go.mod`, `doc.go`: independent Minigo module, using a local module name until a public repository is chosen.
-- `reference/minio/`: upstream source and tests in a separate Git checkout, with no remote.
-- `reference/UPSTREAM.md`: exact upstream revision and provenance.
-- `scripts/`, `Dockerfile.reference`: local reference builds and smoke tests.
-- `dist/reference/`: generated Linux binaries and SHA-256 checksums (ignored by Git).
+## Build and run
 
-Both repositories are local only. The root repository uses `main`; the reference
-retains upstream `master`. No public repository, registry push or CI publishing
-has been configured.
-
-## Local reference builds
-
-Requires Go, Git, `make`, `shasum`, and Docker with Buildx. The binary build uses
-the upstream-pinned Go 1.24.8 toolchain, which Go downloads automatically if
-needed. Initial builds also download pinned module dependencies and the runtime
-base image. `GOTOOLCHAIN` can be overridden explicitly.
+Requires Go (the scripts select Go 1.27.2), Node.js 24, npm, Git, Make and Docker
+with Buildx/Compose. First builds need network access for pinned Go/npm modules,
+the digest-pinned Alpine base, and current OS security packages. No MinIO image
+registry or discontinued binary download is needed to build Minigo.
 
 ```sh
-make reference-binaries
-make reference-images
-make reference-smoke
+make images       # console, static Go binaries, both local container images
+make smoke        # execute both architectures with real mc/S3 operations
+make preview      # persistent local review deployment; prints verified LAN URLs
 ```
 
-`reference-images` also builds the binaries. Outputs are:
-
-| Platform | Binary | Local image |
+| Platform | Server binary | Local image |
 | --- | --- | --- |
-| Linux amd64 | `dist/reference/linux-amd64/minio` | `minigo-reference:local-amd64` |
-| Linux arm64 | `dist/reference/linux-arm64/minio` | `minigo-reference:local-arm64` |
+| Linux amd64 (v1 CPU baseline) | `dist/minigo/linux-amd64/minio` | `minigo:local-amd64` |
+| Linux arm64 (v8.0) | `dist/minigo/linux-arm64/minio` | `minigo:local-arm64` |
 
-Both binaries are statically linked with CGO disabled. amd64 targets the v1 CPU
-baseline; arm64 targets v8.0. Images are loaded into Docker locally, without
-pushing. Cross-architecture smoke tests require Docker emulation (included in
-Docker Desktop). They publish no ports and remove their temporary containers
-and volumes when finished.
+Each directory also contains a source-built, security-updated `mc` and SHA-256
+checksums. `CGO_ENABLED=0` keeps the binaries statically linked. Override
+`MINIGO_ARCHES=arm64` for a single-platform build. Docker Desktop emulation is
+needed to execute the other architecture locally. These are separate locally
+loaded tags, not a published multiarchitecture manifest.
 
-The reference images compile the latest checked-out source and reconstruct the
-upstream runtime contract on a digest-pinned UBI 9 minimal base, including
-`/usr/bin/minio`, source-built `mc`, `curl`, the original shell entrypoint,
-`/data`, port 9000 and credential-file environment defaults. No build depends on
-an upstream MinIO container or binary download. Locally built binaries have
-SHA-256 checksums, not upstream signatures. The OS package set differs from the
-old UBI micro image; complete image equivalence has not been established.
-These are upstream reference images, not an independent Minigo implementation.
+The images retain `/usr/bin/minio`, `/usr/bin/mc`, the upstream shell entrypoint,
+`/data`, credential-file environment defaults, GNU coreutils and `curl`.
+`/usr/bin/minigo` is also available as a symlink. The runtime uses Alpine instead
+of the original UBI userland to reduce dependencies and known OS advisories;
+custom UBI/glibc-specific side tools are outside the image compatibility contract.
 
-The cached official arm64 image
-`minio/minio:RELEASE.2025-09-07T16-13-09Z` is also archived locally under
-`dist/reference/archive/` with its image metadata, for future compatibility and
-existing-data tests. Restore it with `docker load -i <archive.tar>` if needed.
-No cached official amd64 MinIO image was available.
+For a Compose deployment, replace only its image with the matching Minigo tag
+and retain the command, environment and volume configuration. The automated
+acceptance test below exercises precisely that operation on disposable data.
+Do not run two servers concurrently against the same storage volume.
 
-## Compatibility target
+## Console
 
-The future Minigo server and images must preserve the MinIO command/flag and
-`MINIO_*` environment contracts, S3 wire behavior and errors, authentication and
-policies, admin interfaces, console behavior, health/metrics endpoints, data
-volume semantics and supported on-disk formats. Existing deployments must be
-able to switch images on both architectures without changing their configuration.
+The console is embedded in the server binary and needs no Node.js service at
+runtime. It includes desktop/mobile layouts, dark mode and local static assets.
 
-Use the upstream tests and fixtures to establish that contract. Its Go unit
-tests depend on upstream internals, so a new implementation also needs shared
-black-box compatibility tests run against both servers. Full compatibility,
-including existing-data migration and distributed operation, remains to be
-implemented and verified; the included smoke test covers only the reference
-image startup and basic S3 operations.
+- Buckets and object browsing, filtering, folders, file/folder uploads, downloads
+  and ZIP downloads, metadata/tags, text/image previews and sharing.
+- Object versions, restore/rewind, deletion confirmations and bucket versioning.
+- Users, groups, policies and associations, service accounts/access keys.
+- Lifecycle and replication rule editing, deployment status, and allowlisted
+  nonsecret server configuration.
 
-Upstream licensing, attribution and notices remain intact under
-`reference/minio/` and in the reference images.
+All operations use the signed credentials of the existing authenticated session;
+MinIO's server-side IAM remains authoritative. Replication destination credentials
+and secret configuration remain managed with `mc`. Statistics come from the
+server's background scanner and may lag recent writes. Raw lifecycle/replication
+JSON editing is provided for the full underlying rule schema.
+
+`make preview` creates its own persistent `minigo-preview_preview-data` volume,
+binds the console on port 19001 and S3 on 19000, and prints a LAN address suitable
+for a phone on the same network. Random credentials are stored in the ignored
+`dist/preview/credentials.env` file (mode 0600). Set `MINIGO_LAN_IP` explicitly if
+the default-route interface is not the desired network. Stop it with:
+
+```sh
+docker compose --env-file dist/preview/credentials.env -f compose.preview.yaml stop
+```
+
+## Existing-volume acceptance
+
+```sh
+make compatibility
+```
+
+The suite uses the cached official arm64 image
+`minio/minio:RELEASE.2025-09-07T16-13-09Z`. It creates a new volume, writes 10,000
+small objects and a streamed 5 GiB + 1 MiB multipart object, then changes only the
+Compose image. It checks every object/version hash, metadata, tags, unusual keys,
+range reads, IAM, legal holds and real `mc` commands. It completes an upload
+started by MinIO, writes new data, injects SIGKILL during another upload, verifies
+recovery, and switches back to the original image to verify rollback.
+
+[Test details, evidence and limits](tests/compatibility/README.md) describe exact
+assertions and cleanup. No existing user volume is attached. The cached official
+image is archived under `dist/reference/archive/`, with metadata and checksums.
+No official amd64 image was cached: official-image swap evidence is arm64; both
+Minigo architectures have separate executable smoke tests.
+
+This is a compatibility baseline with a substantive single-volume acceptance
+suite, not proof of every deployment or failure mode. Distributed upgrades,
+disk-loss/healing, KMS, remote replication and production workload qualification
+need their own environment-specific tests before production replacement.
+
+## Development and verification
+
+```sh
+MINIO_API_REQUESTS_MAX=10000 CGO_ENABLED=0 go test -p 4 -tags kqueue,dev -timeout 25m ./cmd ./internal/...
+go test github.com/minio/console/api
+npm --prefix console/web-app test
+make security
+make image-security
+```
+
+Browser integration tests are in `console/web-app/tests-minigo/integration.mjs`;
+run them only against a disposable deployment using its root credentials in
+environment variables. They create and remove their own test fixtures.
+
+The Go import paths remain `github.com/minio/minio` and `github.com/minio/console`
+to keep upstream internals/tests intact. A local `replace` uses `./console`.
+This does not configure or contact a Git remote for this repository. Existing
+backend libraries are retained and patched; the console has eight direct runtime
+dependencies and adds no production Go dependencies for its new admin routes.
+
+Source provenance: upstream commit
+`7aac2a2c5b7c882e68c1ce017d8256be2feea27f`; details in
+[reference/UPSTREAM.md](reference/UPSTREAM.md). The upstream build/smoke targets
+remain available as `make reference-images` and `make reference-smoke`.
+
+Minigo and the console retain AGPL-3.0-or-later licensing and upstream notices.
+shadcn component attribution is included in the frontend. This is a derivative
+baseline, not a clean-room rewrite or an official MinIO release.

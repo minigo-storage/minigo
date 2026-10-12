@@ -1,0 +1,17 @@
+services:
+  storage:
+    image: ${COMPAT_IMAGE:?image must be explicitly selected}
+    pull_policy: never
+    platform: ${COMPAT_PLATFORM:-linux/arm64}
+    command: [server, /data, --address, ':9000', --console-address, ':9001']
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?ephemeral test access key required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?ephemeral test secret key required}
+      MINIO_UPDATE: 'off'
+    ports:
+      - '127.0.0.1::9000'
+    volumes:
+      - fixture:/data
+    stop_grace_period: 30s
+volumes:
+  fixture:

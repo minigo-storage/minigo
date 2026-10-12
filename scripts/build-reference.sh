@@ -33,7 +33,7 @@ mc_ldflags="$mc_ldflags -X github.com/minio/mc/cmd.CommitID=$mc_commit"
 mc_ldflags="$mc_ldflags -X github.com/minio/mc/cmd.ShortCommitID=7394ce0dd2a8"
 mc_ldflags="$mc_ldflags -X github.com/minio/mc/cmd.CopyrightYear=2025"
 mkdir -p "$root/dist/reference/licenses/mc"
-cp "$mc_source/LICENSE" "$mc_source/NOTICE" "$mc_source/CREDITS" \
+install -m 644 "$mc_source/LICENSE" "$mc_source/NOTICE" "$mc_source/CREDITS" \
     "$root/dist/reference/licenses/mc/"
 
 for arch in amd64 arm64; do

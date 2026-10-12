@@ -1,3 +1,14 @@
 /reference/minio/
 /dist/
 .DS_Store
+/minio
+/minigo
+**/node_modules/
+console/web-app/build/
+console/web-app/playwright-report/
+console/web-app/test-results/
+.env
+*.test
+coverage.out
+__pycache__/
+*.pyc

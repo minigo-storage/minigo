@@ -1,0 +1,20 @@
+name: minigo-preview
+services:
+  storage:
+    image: ${MINIGO_IMAGE:-minigo:local-arm64}
+    pull_policy: never
+    command: [server, /data, --address, ':9000', --console-address, ':9001']
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?preview user required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?preview password required}
+      MINIO_BROWSER_REDIRECT_URL: http://${MINIGO_LAN_IP:?LAN address required}:19001
+      MINIO_SERVER_URL: http://${MINIGO_LAN_IP}:19000
+      MINIO_UPDATE: 'off'
+    ports:
+      - '0.0.0.0:19000:9000'
+      - '0.0.0.0:19001:9001'
+    volumes:
+      - preview-data:/data
+    stop_grace_period: 30s
+volumes:
+  preview-data:

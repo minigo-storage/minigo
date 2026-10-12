@@ -11,8 +11,8 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-for arch in amd64 arm64; do
-    image="minigo-reference:local-$arch"
+for arch in ${MINIGO_ARCHES:-amd64 arm64}; do
+    image="${MINIGO_IMAGE_PREFIX:-minigo-reference}:local-$arch"
     container="minigo-reference-smoke-$arch-$$"
     docker run --rm --platform "linux/$arch" "$image" --version
     docker run -d --platform "linux/$arch" --name "$container" \
