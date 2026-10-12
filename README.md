@@ -8,7 +8,15 @@ their compatibility effects are listed in [security notes](docs/minigo-security.
 The source repository is [minigo-storage/minigo](https://github.com/minigo-storage/minigo).
 An optional, separate `reference/minio/` checkout retains unchanged upstream
 history, tests and fixtures; see [reference setup](reference/UPSTREAM.md).
-Images are currently built and loaded locally; Docker Hub publication is planned.
+Images are published to [Docker Hub](https://hub.docker.com/r/minigostorage/minigo)
+for Linux amd64 and arm64. Docker selects the matching platform automatically:
+
+```sh
+docker pull minigostorage/minigo:latest
+```
+
+Use the recorded image digest to pin a deployment. See
+[image publication](docs/publishing.md) for tags, checks and the release workflow.
 
 ## Build and run
 

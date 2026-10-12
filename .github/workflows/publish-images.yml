@@ -1,0 +1,161 @@
+name: Publish Docker images
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dockerhub-minigo
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: minigostorage/minigo
+
+jobs:
+  credentials:
+    name: Check publishing credentials
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check repository, branch and credentials
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          test "$GITHUB_REPOSITORY" = minigo-storage/minigo
+          test "$GITHUB_REF" = refs/heads/main
+          test -n "$DOCKERHUB_USERNAME"
+          test -n "$DOCKERHUB_TOKEN"
+      - name: Authenticate to Docker Hub
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  build:
+    name: Build and test linux/${{ matrix.arch }}
+    needs: credentials
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      MINIGO_ARCHES: ${{ matrix.arch }}
+      GOTOOLCHAIN: go1.27.2
+      CGO_ENABLED: '0'
+      GOFLAGS: -p=4
+      GOMAXPROCS: '4'
+      MINIO_API_REQUESTS_MAX: '10000'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.2'
+          cache-dependency-path: |
+            go.sum
+            console/go.sum
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: console/web-app/package-lock.json
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build console, binaries and image
+        run: make images
+      - name: Test console client
+        run: npm --prefix console/web-app test
+      - name: Test backend and console API
+        run: |
+          go test -p 4 -tags kqueue,dev -timeout 25m ./cmd ./internal/...
+          go test -p 4 -timeout 10m github.com/minio/console/api
+      - name: Test image startup and S3 operations
+        run: make smoke
+      - name: Check source and frontend vulnerabilities
+        run: make security
+      - name: Check image vulnerabilities and existing assessments
+        run: make image-security
+      - name: Save the tested image
+        run: |
+          mkdir -p dist/publish
+          docker image inspect "minigo:local-$MINIGO_ARCHES" > dist/publish/image.json
+          docker save "minigo:local-$MINIGO_ARCHES" | gzip > dist/publish/image.tar.gz
+          sha256sum dist/publish/image.tar.gz > dist/publish/image.tar.gz.sha256
+      - name: Upload tested image
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: minigo-image-${{ matrix.arch }}
+          path: dist/publish/
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+      - name: Retain security reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: minigo-security-${{ matrix.arch }}
+          path: dist/security/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  publish:
+    name: Publish tested images and multi-platform tags
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: minigo-image-*
+          path: images
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Push the exact tested images and publish the index
+        run: |
+          build_tag="build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          refs=()
+          for arch in amd64 arm64; do
+            artifact="images/minigo-image-$arch"
+            expected_archive=$(awk '{print $1}' "$artifact/image.tar.gz.sha256")
+            printf '%s  %s\n' "$expected_archive" "$artifact/image.tar.gz" | sha256sum --check
+            docker load --input "$artifact/image.tar.gz"
+            local_image="minigo:local-$arch"
+            docker image inspect "$local_image" > loaded.json
+            jq -e --arg arch "$arch" --arg revision "$GITHUB_SHA" \
+              '.[0] | .Os == "linux" and .Architecture == $arch and .Config.Labels["org.opencontainers.image.revision"] == $revision' loaded.json
+            test "$(jq -r '.[0].Id' loaded.json)" = "$(jq -r '.[0].Id' "$artifact/image.json")"
+            target="$IMAGE_NAME:$build_tag-$arch"
+            docker tag "$local_image" "$target"
+            docker push "$target"
+            refs+=("$(docker image inspect "$target" --format '{{index .RepoDigests 0}}')")
+          done
+          docker buildx imagetools create --tag "$IMAGE_NAME:$build_tag" "${refs[@]}"
+          docker buildx imagetools inspect "$IMAGE_NAME:$build_tag" --raw > manifest.json
+          jq -e '[.manifests[].platform | .os + "/" + .architecture] | sort == ["linux/amd64", "linux/arm64"]' manifest.json
+          digest=$(docker buildx imagetools inspect "$IMAGE_NAME:$build_tag" --format '{{json .Manifest}}' | jq -r .digest)
+          test -n "$digest" && test "$digest" != null
+          docker buildx imagetools create \
+            --tag "$IMAGE_NAME:sha-$GITHUB_SHA" \
+            --tag "$IMAGE_NAME:latest" "$IMAGE_NAME@$digest"
+          docker buildx imagetools inspect "$IMAGE_NAME:latest"
+          {
+            echo '### Published Minigo images'
+            echo "- Source: $GITHUB_SHA"
+            echo "- Platforms: linux/amd64, linux/arm64"
+            echo "- Image: $IMAGE_NAME:latest"
+            echo "- Source tag: $IMAGE_NAME:sha-$GITHUB_SHA"
+            echo "- Build tag: $IMAGE_NAME:$build_tag"
+            echo "- Digest: $IMAGE_NAME@$digest"
+          } >> "$GITHUB_STEP_SUMMARY"

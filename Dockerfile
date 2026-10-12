@@ -5,6 +5,7 @@ ARG MINIGO_REVISION=local
 LABEL org.opencontainers.image.title="Minigo" \
       org.opencontainers.image.description="MinIO-compatible object storage with the Minigo management console" \
       org.opencontainers.image.revision="${MINIGO_REVISION}" \
+      org.opencontainers.image.source="https://github.com/minigo-storage/minigo" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
 
 # The Go binaries are static. Keep the original shell/curl/GNU chroot contract

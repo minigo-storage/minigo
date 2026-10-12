@@ -21,7 +21,7 @@ for arch in ${MINIGO_ARCHES:-amd64 arm64}; do
         "$image" server /data --console-address :9001 >/dev/null
 
     ready=false
-    for attempt in $(seq 1 60); do
+    for _attempt in $(seq 1 60); do
         if docker exec "$container" curl --fail --silent \
             http://127.0.0.1:9000/minio/health/ready >/dev/null 2>&1; then
             ready=true
