@@ -92,6 +92,9 @@ image is archived under `dist/reference/archive/`, with metadata and checksums.
 No official amd64 image was cached: official-image swap evidence is arm64; both
 Minigo architectures have separate executable smoke tests.
 
+[Completed local validation](docs/validation.md) records the final image IDs,
+passing same-volume result, browser checks, security assessments and scope.
+
 This is a compatibility baseline with a substantive single-volume acceptance
 suite, not proof of every deployment or failure mode. Distributed upgrades,
 disk-loss/healing, KMS, remote replication and production workload qualification
