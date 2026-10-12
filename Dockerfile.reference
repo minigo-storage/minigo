@@ -1,0 +1,35 @@
+# Recreate the upstream runtime contract without retired MinIO image/download
+# endpoints. The cached upstream image is retained separately for comparison.
+FROM registry.access.redhat.com/ubi9/ubi-minimal@sha256:a21d19f72557aa893a0f6ca1177bb1ffd91df6015e60470a116c50a6a05efcd9
+
+ARG TARGETARCH
+ARG REFERENCE_REVISION
+
+LABEL org.opencontainers.image.title="Minigo MinIO reference" \
+      org.opencontainers.image.description="Locally built upstream reference for Minigo compatibility testing" \
+      org.opencontainers.image.revision="${REFERENCE_REVISION}" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later"
+
+RUN microdnf install -y ca-certificates coreutils-single curl-minimal && microdnf clean all
+
+ENV MINIO_ACCESS_KEY_FILE=access_key \
+    MINIO_SECRET_KEY_FILE=secret_key \
+    MINIO_ROOT_USER_FILE=access_key \
+    MINIO_ROOT_PASSWORD_FILE=secret_key \
+    MINIO_KMS_SECRET_KEY_FILE=kms_master_key \
+    MINIO_UPDATE_MINISIGN_PUBKEY="RWTx5Zr1tiHQLwG9keckT0c45M3AGeHD6IvimQHpyRywVWGbP1aVSGav" \
+    MINIO_CONFIG_ENV_FILE=config.env \
+    MC_CONFIG_DIR=/tmp/.mc
+
+COPY dist/reference/linux-${TARGETARCH}/minio /usr/bin/minio
+COPY dist/reference/linux-${TARGETARCH}/minio.sha256sum /usr/bin/minio.sha256sum
+COPY dist/reference/linux-${TARGETARCH}/mc /usr/bin/mc
+COPY dist/reference/linux-${TARGETARCH}/mc.sha256sum /usr/bin/mc.sha256sum
+COPY reference/minio/LICENSE reference/minio/NOTICE reference/minio/CREDITS /licenses/
+COPY dist/reference/licenses/mc/ /licenses/mc/
+COPY reference/minio/dockerscripts/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+
+EXPOSE 9000
+VOLUME ["/data"]
+ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
+CMD ["minio"]

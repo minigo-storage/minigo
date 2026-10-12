@@ -1,0 +1,12 @@
+**
+!dist/
+!dist/reference/
+!dist/reference/**
+dist/reference/archive/
+!reference/
+!reference/minio/
+!reference/minio/LICENSE
+!reference/minio/NOTICE
+!reference/minio/CREDITS
+!reference/minio/dockerscripts/
+!reference/minio/dockerscripts/docker-entrypoint.sh
