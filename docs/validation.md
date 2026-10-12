@@ -7,7 +7,10 @@ which include a fresh same-volume verification and current image IDs.
 The local images below were built from source commit
 `8089a9bf3d7e2da7a2e65b62bf107914a1182dc8`, using Go 1.27.2 and the embedded
 production console. Subsequent documentation-only commits do not change them.
-No image or source was published. Both Git repositories have no remotes.
+The equivalent source commit in the published history is
+`edc71ec02132fdd15e85f1f1c86a1b579174d7f1`; the identity rewrite changed commit
+metadata only. At the time of this validation, neither source nor images had
+been published and both Git repositories had no remotes.
 
 ## Delivered artifacts
 

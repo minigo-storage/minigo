@@ -1,13 +1,14 @@
 # Minigo
 
-Minigo is a local Go fork of MinIO with an expanded React/shadcn management
+Minigo is an open-source Go fork of MinIO with an expanded React/shadcn management
 console. It retains the MinIO storage engine, disk formats, S3/admin protocols,
 `mc` integration, server flags and `MINIO_*` configuration. Security fixes and
 their compatibility effects are listed in [security notes](docs/minigo-security.md).
 
-The separate `reference/minio/` checkout remains unchanged, with upstream history,
-tests and fixtures. Neither checkout has a remote. Images are built and loaded
-locally; there is no registry push or publishing workflow.
+The source repository is [minigo-storage/minigo](https://github.com/minigo-storage/minigo).
+An optional, separate `reference/minio/` checkout retains unchanged upstream
+history, tests and fixtures; see [reference setup](reference/UPSTREAM.md).
+Images are currently built and loaded locally; Docker Hub publication is planned.
 
 ## Build and run
 

@@ -16,7 +16,8 @@ repository, so it is neither a submodule nor a duplicate source import.
 
 If this workspace must be recreated later, clone the URL above to
 `reference/minio`, check out the recorded commit, and remove `origin`.
-The URL is provenance only; no remote is configured in either repository.
+The upstream URL is provenance only; the reference checkout has no remote.
+The Minigo fork is published at https://github.com/minigo-storage/minigo.
 
 ## Runtime reference
 

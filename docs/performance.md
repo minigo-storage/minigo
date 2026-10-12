@@ -120,6 +120,9 @@ warm-cache observations, not native amd64 or distributed performance claims.
 The optimized binaries and images were built from source commit
 `a9487e484a7413e934014674d5f629da131011db`. Later documentation-only commits do
 not change these artifacts.
+The equivalent source commit in the published history is
+`c6eb645f2cddaad1639a9bdc955b1fe1b9778aa8`; the identity rewrite changed commit
+metadata only.
 
 | Platform | Local image | Image ID |
 | --- | --- | --- |
