@@ -1299,8 +1299,6 @@ a {
   max-width: 270px !important;
   left: 0 !important;
   top: 0 !important;
-  transform: none !important;
-  translate: none !important;
   border-radius: 0 !important;
   padding: 30px 20px 0 !important;
   display: flex !important;

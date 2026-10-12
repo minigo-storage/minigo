@@ -23,11 +23,13 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"html"
 	"io"
 	"io/fs"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -533,14 +535,26 @@ func parseSubPath(v string) string {
 
 func replaceBaseInIndex(indexPageBytes []byte, basePath string) []byte {
 	if basePath != "" {
-		validBasePath := regexp.MustCompile(`^/[0-9a-zA-Z/_-]*$`)
-		if !validBasePath.MatchString(basePath) || strings.HasPrefix(basePath, "//") {
+		base, err := url.Parse(basePath)
+		if err != nil || !strings.HasPrefix(basePath, "/") || base.Scheme != "" || base.Host != "" || base.User != nil || base.Opaque != "" || base.RawQuery != "" || base.ForceQuery || base.Fragment != "" || strings.Contains(basePath, "#") {
 			return indexPageBytes
 		}
+		// Check the decoded path too: encoded separators and dot segments must
+		// not turn a relative console prefix into an authority or traversal.
+		if !strings.HasPrefix(base.Path, "/") || strings.HasPrefix(base.Path, "//") || strings.ContainsAny(base.Path, "\\<>\"") || strings.IndexFunc(base.Path, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 {
+			return indexPageBytes
+		}
+		for _, segment := range strings.Split(base.Path, "/") {
+			if segment == "." || segment == ".." {
+				return indexPageBytes
+			}
+		}
 		indexPageStr := string(indexPageBytes)
-		newBase := fmt.Sprintf("<base href=\"%s\"/>", basePath)
+		// URL escaping preserves Unicode and encoded paths; attribute escaping
+		// prevents path punctuation such as '&' from becoming HTML entities.
+		newBase := fmt.Sprintf("<base href=\"%s\"/>", html.EscapeString(base.EscapedPath()))
 		baseElement := regexp.MustCompile(`<base\s+href="/"\s*/?>`)
-		indexPageStr = baseElement.ReplaceAllString(indexPageStr, newBase)
+		indexPageStr = baseElement.ReplaceAllStringFunc(indexPageStr, func(string) string { return newBase })
 		indexPageBytes = []byte(indexPageStr)
 
 	}

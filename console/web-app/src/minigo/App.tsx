@@ -478,7 +478,7 @@ export default function App() {
     <div className="app-shell">
       <aside className="sidebar">{sidebar}</aside>
       <Dialog open={mobile} onOpenChange={setMobile}>
-        <DialogContent className="mobile-nav">
+        <DialogContent className="mobile-nav left-0 top-0 translate-x-0 translate-y-0">
           <DialogHeader className="sr-only">
             <DialogTitle>Navigation</DialogTitle>
             <DialogDescription>Browse the Minigo console.</DialogDescription>

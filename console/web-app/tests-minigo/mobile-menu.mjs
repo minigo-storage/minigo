@@ -19,7 +19,7 @@ await page.route("**/api/v1/**", (route) => {
         : { buckets: [] },
   });
 });
-await page.goto("http://127.0.0.1:5173/overview");
+await page.goto(`${process.env.MINIGO_UI_URL || "http://127.0.0.1:5173"}/overview`);
 await page
   .getByRole("button", { name: "Open navigation", exact: true })
   .click();

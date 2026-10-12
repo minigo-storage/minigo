@@ -102,8 +102,8 @@ not every timing window of concurrent writes or host power failure.
 Those require additional suites before claiming production replacement safety.
 
 The cached official image has an existing listing quirk: if `prefix/file` and
-`prefix/file/child` both exist, ordinary V1/V2 listings omit the child. Direct reads
-and version listings still access it. The suite records that exact baseline
+`prefix/file/child` both exist, V1, V2 and version listings omit the child. Direct
+reads still access it. The suite records that exact baseline
 listing behavior and requires Minigo to preserve it, while hashing the child
 independently. This is a compatibility finding, not evidence that the object was
 lost. Changing this behavior should be a separate, explicitly reviewed fix.
