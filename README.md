@@ -69,7 +69,7 @@ for a phone on the same network. Random credentials are stored in the ignored
 the default-route interface is not the desired network. Stop it with:
 
 ```sh
-docker compose --env-file dist/preview/credentials.env -f compose.preview.yaml stop
+docker compose --env-file dist/preview/runtime.env -f compose.preview.yaml stop
 ```
 
 ## Existing-volume acceptance

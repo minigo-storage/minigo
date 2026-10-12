@@ -27,7 +27,11 @@ if [ ! -f dist/preview/credentials.env ]; then
         printf 'MINIO_ROOT_PASSWORD=%s\n' "$(openssl rand -hex 16)"
     } > dist/preview/credentials.env
 fi
-docker compose --env-file dist/preview/credentials.env -f compose.preview.yaml up -d
+{
+    cat dist/preview/credentials.env
+    printf 'MINIGO_LAN_IP=%s\nMINIGO_IMAGE=%s\n' "$MINIGO_LAN_IP" "$MINIGO_IMAGE"
+} > dist/preview/runtime.env
+docker compose --env-file dist/preview/runtime.env -f compose.preview.yaml up -d
 for attempt in $(seq 1 60); do
     if curl --fail --silent "http://$MINIGO_LAN_IP:19000/minio/health/ready" >/dev/null && \
        curl --fail --silent "http://$MINIGO_LAN_IP:19001/" >/dev/null; then
@@ -36,5 +40,5 @@ for attempt in $(seq 1 60); do
     fi
     sleep 1
 done
-docker compose --env-file dist/preview/credentials.env -f compose.preview.yaml logs --tail=50
+docker compose --env-file dist/preview/runtime.env -f compose.preview.yaml logs --tail=50
 exit 1
