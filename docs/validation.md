@@ -1,5 +1,9 @@
 # Local validation — 13 October 2026
 
+This records the initial compatibility baseline. The local image tags now point
+to the optimized builds documented in [performance results](performance.md),
+which include a fresh same-volume verification and current image IDs.
+
 The local images below were built from source commit
 `8089a9bf3d7e2da7a2e65b62bf107914a1182dc8`, using Go 1.27.2 and the embedded
 production console. Subsequent documentation-only commits do not change them.

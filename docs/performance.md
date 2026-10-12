@@ -25,7 +25,7 @@ three one-second samples per case:
 | Two unavailable data shards | 1,595,585 | 546,817 | See raw report | See raw report |
 | Prefer parity shards | 2,135,856 | 1,087,088 | See raw report | See raw report |
 
-These measure allocation and CPU time in a memory-backed decoder, **not process
+These measure allocation and elapsed time in a memory-backed decoder, **not process
 RSS or end-to-end S3 throughput**. Fixtures verify every output byte through
 normal reads, ranges, degradation, parity preference, oversized legacy blocks,
 healing, mid-read corruption, and buffer ownership on success/error paths.
@@ -114,3 +114,69 @@ fixtures. Its [scope and workload](../tests/performance/README.md) include 1 KiB
 GETs, complete paginated listings, and 16 MiB GET/dual-SHA PUT at concurrency
 one and eight. SDK/network/verification costs are included; these are local
 warm-cache observations, not native amd64 or distributed performance claims.
+
+## Delivered images and regression results
+
+The optimized binaries and images were built from source commit
+`a9487e484a7413e934014674d5f629da131011db`. Later documentation-only commits do
+not change these artifacts.
+
+| Platform | Local image | Image ID |
+| --- | --- | --- |
+| Linux amd64 | `minigo:local-amd64` | `sha256:424386a9d5cb0f67c3fea04c76d40681230dff9ed2bfbcc837660045347beb6f` |
+| Linux arm64 | `minigo:local-arm64` | `sha256:f184c8b910cc3fbc6e9216420064801403eef0fc84a58e23feb924616eec288f` |
+
+- Full `./cmd ./internal/...` suite passed: [backend log](../dist/performance/backend-tests.txt).
+- Read-buffer, checksum and concurrent pool race tests passed; worker timing and
+  cancellation passed using Go's fake-clock test support.
+- The new read/pool tests and complete checksum package tests also passed under
+  Linux amd64 emulation: [read/pool log](../dist/performance/amd64-read-pool-tests.txt),
+  [checksum log](../dist/performance/amd64-hash-tests.txt).
+- Both image architectures passed real `mc` startup, readiness and S3
+  create/read/stat/list/delete: [smoke log](../dist/performance/smoke.txt).
+- Source and frontend scans remain clear of reachable/imported-package Go
+  advisories and frontend advisories. Image scans retain the same three
+  explicitly assessed raw findings per image, with zero unresolved findings:
+  [source log](../dist/performance/security.txt),
+  [exact-image assessments](../dist/performance/image-assessment.json).
+- A **new official-MinIO volume** passed all eight image-only swap, write,
+  interrupted multipart, recovery and rollback phases. All 10,047 versions were
+  reverified, including 10,000 small objects and the 5 GiB + 1 MiB object:
+  [exact-image report](../dist/compatibility/minigo-compat-20261013083729-41833c/report.json).
+  The fixture volume is retained and stopped on the official image.
+
+The persistent preview now runs the optimized arm64 image at
+<http://10.1.1.222:19001/> with its existing isolated sample-data volume.
+Neither repository has a remote; nothing was pushed or published. Existing
+[qualification limits](validation.md#qualification-limits) still apply,
+particularly distributed failures, KMS, remote replication and production load.
+
+## End-to-end S3 comparison
+
+All four ABBA runs passed against the exact baseline and optimized image IDs.
+Each run verified 2,048 small fixture objects, the 16 MiB source object, all
+32 new 16 MiB uploads, complete paginated listing order/count, and the actual
+signed dual-SHA request headers. Disposable benchmark containers and volumes
+were removed afterward.
+
+Median operations/second from the two runs per image:
+
+| Operation | Concurrency | Baseline | Optimized | Change |
+| --- | ---: | ---: | ---: | ---: |
+| 1 KiB GET | 1 | 2,405.4 | 2,558.9 | +6.4% |
+| Complete small-object LIST | 1 | 31.6 | 31.7 | +0.4% |
+| 16 MiB GET | 1 | 18.4 | 17.7 | -4.3% |
+| Signed dual-SHA 16 MiB PUT | 1 | 15.7 | 15.2 | -3.2% |
+| 1 KiB GET | 8 | 13,061.9 | 13,461.2 | +3.1% |
+| Complete small-object LIST | 8 | 99.5 | 97.7 | -1.8% |
+| 16 MiB GET | 8 | 18.9 | 19.2 | +1.3% |
+| Signed dual-SHA 16 MiB PUT | 8 | 20.3 | 19.7 | -2.8% |
+
+These mixed, small changes do **not** establish an overall S3 throughput
+improvement. There are only two runs per image, the Docker/network/storage and
+client costs are included, and run-to-run variation is visible. The demonstrated
+gains are lower decoder allocations, less retained idle cache, and less work in
+the applicable SHA-256 path. This pass does not claim a measured whole-server
+CPU or peak-RSS reduction.
+
+[Machine-readable comparison and raw runs](../dist/performance/s3-20261013084307-3b6a22/comparison.json).
