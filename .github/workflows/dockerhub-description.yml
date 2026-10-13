@@ -2,6 +2,10 @@ name: Update Docker Hub description
 
 on:
   workflow_dispatch:
+  workflow_call:
+    secrets:
+      DOCKERHUB_TOKEN:
+        required: true
 
 permissions:
   contents: read

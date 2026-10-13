@@ -219,3 +219,10 @@ jobs:
               --verify-tag --title "Minigo $MINIGO_VERSION" \
               --generate-notes --notes-file release-notes.md
           fi
+
+  description:
+    name: Update Docker Hub description
+    needs: publish
+    uses: ./.github/workflows/dockerhub-description.yml
+    secrets:
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

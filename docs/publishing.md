@@ -44,8 +44,9 @@ a later commit advances beyond the reserved version.
 
 The GitHub repository needs the Actions variable `DOCKERHUB_USERNAME` and the
 Actions secret `DOCKERHUB_TOKEN`. For a Docker personal access token, the username
-is the token owner's personal Docker ID. That account needs write access to
-`minigostorage/minigo`, and the token needs **Repo Read & Write** permission.
+is the token owner's personal Docker ID. That account needs admin access to
+`minigostorage/minigo`, and the token needs **Repo Read, Write, Delete** permission
+so releases can push images and update the repository description.
 The Docker Hub repository must be public.
 
 ```sh
@@ -55,12 +56,15 @@ gh secret set DOCKERHUB_TOKEN --repo minigo-storage/minigo --app actions
 
 The second command prompts for the token; do not put the token in a command
 argument, commit it, or paste it into an issue. The workflow authenticates before
-starting the builds and passes the token only to authentication steps.
+starting the builds and passes the token only to the Docker login and description
+actions.
 
 ## Build, test and publish
 
-The Docker Hub overview can be refreshed independently from the current README
-using the [description workflow](../.github/workflows/dockerhub-description.yml):
+Each successful image release calls the
+[description workflow](../.github/workflows/dockerhub-description.yml) as its
+final job, publishing the README from the same source commit as the release.
+The overview can also be refreshed independently from the current README:
 
 ```sh
 gh workflow run dockerhub-description.yml --repo minigo-storage/minigo --ref main
@@ -71,11 +75,20 @@ to GitHub URLs so the contribution guide, security policy and other documents
 remain accessible from Docker Hub. It uses the existing Docker Hub credentials
 and does not rebuild images, change image tags or increment the release version.
 Docker Hub description updates require repository admin access and a personal
-access token with **Read, Write & Delete** permission, as documented by the
+access token with **Repo Read, Write, Delete** permission, as documented by the
 [description action](https://github.com/peter-evans/dockerhub-description).
 An image-publishing token with only Read & Write permission can authenticate
-successfully but receive `Forbidden` when updating the description. The overview
-can also be edited directly in Docker Hub by an authorized repository admin.
+successfully but receive `Forbidden` when updating the description. Change the
+existing token's scope in Docker account settings; its value and the GitHub
+secret do not need to change. This scope also permits image deletion across the
+repositories the token owner can manage; Docker personal tokens cannot be
+restricted to just one repository. See
+[Docker's token permissions](https://docs.docker.com/security/access-tokens/reference/).
+
+If description publication fails, the images and GitHub release remain published
+and the release workflow reports failure. Rerun only its failed description job,
+or use the independent workflow above to publish the current README. Neither
+approach rebuilds images or increments the version.
 
 To publish new images:
 
