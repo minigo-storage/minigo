@@ -59,6 +59,20 @@ starting the builds and passes the token only to authentication steps.
 
 ## Build, test and publish
 
+The Docker Hub overview can be refreshed independently from the current README
+using the [description workflow](../.github/workflows/dockerhub-description.yml):
+
+```sh
+gh workflow run dockerhub-description.yml --repo minigo-storage/minigo --ref main
+```
+
+This updates the short description and full README, converting relative links
+to GitHub URLs so the contribution guide, security policy and other documents
+remain accessible from Docker Hub. It uses the existing Docker Hub credentials
+and does not rebuild images, change image tags or increment the release version.
+
+To publish new images:
+
 ```sh
 gh workflow run publish-images.yml --repo minigo-storage/minigo --ref main -f increment=patch
 gh run list --repo minigo-storage/minigo --workflow publish-images.yml

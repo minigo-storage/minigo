@@ -1,0 +1,40 @@
+name: Update Docker Hub description
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dockerhub-description-minigo
+  cancel-in-progress: false
+
+jobs:
+  description:
+    name: Publish the README to Docker Hub
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check repository, branch and credentials
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          test "$GITHUB_REPOSITORY" = minigo-storage/minigo
+          test "$GITHUB_REF" = refs/heads/main
+          test -n "$DOCKERHUB_USERNAME"
+          test -n "$DOCKERHUB_TOKEN"
+          test "$(wc -c < README.md)" -lt 24000
+      - name: Update the short description and README
+        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: minigostorage/minigo
+          short-description: "Minigo: open-source, MinIO-compatible object storage with an expanded management console."
+          readme-filepath: ./README.md
+          enable-url-completion: true
