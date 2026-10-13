@@ -70,6 +70,12 @@ This updates the short description and full README, converting relative links
 to GitHub URLs so the contribution guide, security policy and other documents
 remain accessible from Docker Hub. It uses the existing Docker Hub credentials
 and does not rebuild images, change image tags or increment the release version.
+Docker Hub description updates require repository admin access and a personal
+access token with **Read, Write & Delete** permission, as documented by the
+[description action](https://github.com/peter-evans/dockerhub-description).
+An image-publishing token with only Read & Write permission can authenticate
+successfully but receive `Forbidden` when updating the description. The overview
+can also be edited directly in Docker Hub by an authorized repository admin.
 
 To publish new images:
 
