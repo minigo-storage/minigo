@@ -1,4 +1,4 @@
-# Bucket Versioning Guide [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io) [![Docker Pulls](https://img.shields.io/docker/pulls/minio/minio.svg?maxAge=604800)](https://hub.docker.com/r/minio/minio/)
+# Bucket Versioning Guide [Issues (GitHub sign-in required)](https://github.com/minigo-storage/minigo/issues) [![Docker Pulls](https://img.shields.io/docker/pulls/minio/minio.svg?maxAge=604800)](https://hub.docker.com/r/minio/minio/)
 
 MinIO versioning is designed to keep multiple versions of an object in one bucket. For example, you could store `spark.csv` (version `ede336f2`) and `spark.csv` (version `fae684da`) in a single bucket. Versioning protects you from unintended overwrites, deletions, protect objects with retention policies.
 
@@ -79,7 +79,7 @@ Duplicate delete markers are not created on MinIO buckets with versioning, if an
 
 ### Motivation
 
-**PLEASE READ: This feature is meant for advanced use-cases only where the setup is using bucket versioning or with replicated buckets, use this feature to optimize versioning behavior for some specific applications. MinIO experts will evaluate and guide on the benefits for your application, please reach out to us on <https://subnet.min.io>.**
+**PLEASE READ: This feature is meant for advanced use-cases only where the setup is using bucket versioning or with replicated buckets, use this feature to optimize versioning behavior for some specific applications. For questions about your application, sign in to GitHub and open an issue in [GitHub issues](https://github.com/minigo-storage/minigo/issues).**
 
 Spark/Hadoop workloads which use Hadoop MR Committer v1/v2 algorithm upload objects to a temporary prefix in a bucket. These objects are 'renamed' to a different prefix on Job commit. Object storage admins are forced to configure separate ILM policies to expire these objects and their versions to reclaim space.
 

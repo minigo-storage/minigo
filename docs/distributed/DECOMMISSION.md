@@ -113,7 +113,7 @@ Once decommission is complete, it will be indicated with *Complete* status.  *Co
 
 ## NOTE
 
-- Empty delete markers (such as for objects with no other successor versions) do not transition to the new pool to avoid creating empty metadata on the other pool(s). If you believe transitioning empty delete markers is required, open a GitHub issue.
+- Empty delete markers (such as for objects with no other successor versions) do not transition to the new pool to avoid creating empty metadata on the other pool(s). If you believe transitioning empty delete markers is required, sign in to GitHub and open an issue in [GitHub issues](https://github.com/minigo-storage/minigo/issues).
 
 ## TODO
 

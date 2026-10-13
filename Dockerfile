@@ -2,9 +2,11 @@ FROM alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cab
 
 ARG TARGETARCH
 ARG MINIGO_REVISION=local
+ARG MINIGO_VERSION=dev
 LABEL org.opencontainers.image.title="Minigo" \
       org.opencontainers.image.description="MinIO-compatible object storage with the Minigo management console" \
       org.opencontainers.image.revision="${MINIGO_REVISION}" \
+      org.opencontainers.image.version="${MINIGO_VERSION}" \
       org.opencontainers.image.source="https://github.com/minigo-storage/minigo" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
 

@@ -1,4 +1,4 @@
-# Access Management Plugin Guide [![Slack](https://slack.minio.io/slack?type=svg)](https://slack.minio.io)
+# Access Management Plugin Guide [Issues (GitHub sign-in required)](https://github.com/minigo-storage/minigo/issues)
 
 MinIO now includes support for using an Access Management Plugin. This is to allow object storage access control to be managed externally via a webhook.
 

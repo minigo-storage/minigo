@@ -1,4 +1,4 @@
-# Casdoor Quickstart Guide [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
+# Casdoor Quickstart Guide [Issues (GitHub sign-in required)](https://github.com/minigo-storage/minigo/issues)
 
 Casdoor is a UI-first centralized authentication / Single-Sign-On (SSO) platform supporting OAuth 2.0, OIDC and SAML, integrated with Casbin RBAC and ABAC permission management. This document covers configuring Casdoor identity provider support with MinIO.
 

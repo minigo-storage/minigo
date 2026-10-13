@@ -1,4 +1,4 @@
-# AssumeRole [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
+# AssumeRole [Issues (GitHub sign-in required)](https://github.com/minigo-storage/minigo/issues)
 
 ## Introduction
 

@@ -2,41 +2,33 @@
 
 ## Supported Versions
 
-We always provide security updates for the [latest release](https://github.com/minio/minio/releases/latest).
-Whenever there is a security update you just need to upgrade to the latest version.
+Security fixes are maintained in the latest Minigo version in
+[minigo-storage/minigo](https://github.com/minigo-storage/minigo).
+Upgrade to the latest version when a security fix is available.
 
 ## Reporting a Vulnerability
 
-All security bugs in [minio/minio](https://github,com/minio/minio) (or other minio/* repositories)
-should be reported by email to security@min.io. Your email will be acknowledged within 48 hours,
-and you'll receive a more detailed response to your email within 72 hours indicating the next steps
-in handling your report.
+Report security concerns affecting Minigo or its bundled console through
+[this repository's issues](https://github.com/minigo-storage/minigo/issues).
+Only authenticated GitHub users may submit reports or follow-up comments;
+sign in to your GitHub account first. All project contact is handled through issues.
 
-Please, provide a detailed explanation of the issue. In particular, outline the type of the security
-issue (DoS, authentication bypass, information disclose, ...) and the assumptions you're making (e.g. do
-you need access credentials for a successful exploit).
+Issues are public. Start with a non-sensitive summary, the affected version and
+component, the type of issue (such as denial of service or authentication bypass),
+and whether exploitation requires credentials. Do not include secrets, personal
+information or exploit details that could put deployments at risk.
 
-If you have not received a reply to your email within 48 hours or you have not heard from the security team
-for the past five days please contact the security team directly:
+Maintainers will respond in the issue with next steps. Add follow-up information
+to the same issue so the discussion stays together.
 
-- Primary security coordinator: aead@min.io
-- Secondary coordinator: harsha@min.io
-- If you receive no response: dev@min.io
+## Disclosure Process
 
-### Disclosure Process
+1. Maintainers assess the report, attempt to verify the issue and determine its impact.
+2. Maintainers respond in the issue with their findings and next steps.
+3. Related code is reviewed for similar problems and fixes are prepared for the
+   latest Minigo version.
+4. The issue is updated when a fix is available, with any relevant upgrade guidance.
 
-MinIO uses the following disclosure process:
-
-1. Once the security report is received one member of the security team tries to verify and reproduce
-   the issue and determines the impact it has.
-2. A member of the security team will respond and either confirm or reject the security report.
-   If the report is rejected the response explains why.
-3. Code is audited to find any potential similar problems.
-4. Fixes are prepared for the latest release.
-5. On the date that the fixes are applied a security advisory will be published on <https://blog.min.io>.
-   Please inform us in your report email whether MinIO should mention your contribution w.r.t. fixing
-   the security issue. By default MinIO will **not** publish this information to protect your privacy.
-
-This process can take some time, especially when coordination is required with maintainers of other projects.
-Every effort will be made to handle the bug in as timely a manner as possible, however it's important that we
-follow the process described above to ensure that disclosures are handled consistently.
+Response times depend on maintainer availability and any coordination needed
+with other projects. See the [vulnerability management policy](VULNERABILITY_REPORT.md)
+for the assessment process.

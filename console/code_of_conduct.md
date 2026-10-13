@@ -50,18 +50,22 @@ Code of Conduct.
 
 This Code of Conduct applies both within project spaces and in public spaces
 when an individual is representing the project or its community. Examples of
-representing a project or community include using an official project e-mail
-address, posting via an official social media account, or acting as an appointed
+representing a project or community include posting via an official project
+account or acting as an appointed
 representative at an online or offline event. Representation of a project may be
 further defined and clarified by project maintainers.
 
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by contacting the project team at dev@min.io. The project team
+reported through [this repository's issues](https://github.com/minigo-storage/minigo/issues).
+Only authenticated GitHub users may submit reports or follow-up comments;
+sign in to your GitHub account first. Project contact is handled through issues.
+Issues are public, so provide a non-sensitive summary and do not include personal
+information or private correspondence. The project team
 will review and investigate all complaints, and will respond in a way that it deems
-appropriate to the circumstances. The project team is obligated to maintain
-confidentiality with regard to the reporter of an incident.
+appropriate to the circumstances. Public issue reports and the reporter's GitHub
+identity are visible to others; confidentiality cannot be guaranteed.
 Further details of specific enforcement policies may be posted separately.
 
 Project maintainers who do not follow or enforce the Code of Conduct in good

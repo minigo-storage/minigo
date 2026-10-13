@@ -1,4 +1,4 @@
-# MinIO Bucket Notification Guide [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
+# MinIO Bucket Notification Guide [Issues (GitHub sign-in required)](https://github.com/minigo-storage/minigo/issues)
 
 Events occurring on objects in a bucket can be monitored using bucket event notifications.
 
@@ -845,7 +845,7 @@ Received a message: {"EventType":"s3:ObjectCreated:Put","Key":"images/myphoto.jp
 >
 > Please make sure this step is carried out, without this step PostgreSQL notification targets will not work,
 > an error message will be shown on the console upon server upgrade/restart, make sure to follow the above
-> instructions appropriately. For further questions please join our <https://slack.min.io>
+> instructions appropriately. For further questions, sign in to GitHub and open an issue in [GitHub issues](https://github.com/minigo-storage/minigo/issues).
 
 Install [PostgreSQL](https://www.postgresql.org/) database server. For illustrative purposes, we have set the "postgres" user password as `password` and created a database called `minio_events` to store the events.
 
@@ -978,7 +978,7 @@ key                 |                      value
 >
 > Please make sure this step is carried out, without this step MySQL notification targets will not work,
 > an error message will be shown on the console upon server upgrade/restart, make sure to follow the above
-> instructions appropriately. For further questions please join our <https://slack.min.io>
+> instructions appropriately. For further questions, sign in to GitHub and open an issue in [GitHub issues](https://github.com/minigo-storage/minigo/issues).
 
 Install MySQL from [here](https://dev.mysql.com/downloads/mysql/). For illustrative purposes, we have set the root password as `password` and created a database called `miniodb` to store the events.
 

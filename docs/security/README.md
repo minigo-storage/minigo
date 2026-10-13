@@ -1,4 +1,4 @@
-# MinIO Security Overview [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
+# MinIO Security Overview [Issues (GitHub sign-in required)](https://github.com/minigo-storage/minigo/issues)
 
 ## Server-Side Encryption
 

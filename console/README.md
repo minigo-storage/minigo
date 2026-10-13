@@ -2,7 +2,16 @@
 
 ![build](https://github.com/minio/object-browser/actions/workflows/jobs.yaml/badge.svg) ![license](https://img.shields.io/badge/license-AGPL%20V3-blue)
 
-A graphical user interface for [MinIO](https://github.com/minio/minio)
+A graphical user interface bundled with [Minigo](../README.md), maintained in
+[minigo-storage/minigo](https://github.com/minigo-storage/minigo).
+
+Submit suggestions, bug reports and patch requests through
+[this repository's issues](https://github.com/minigo-storage/minigo/issues).
+Only authenticated GitHub users may submit issues or participate in discussions;
+sign in to your GitHub account first. Project contact is handled through issues.
+Raise patches as [pull requests against this repository](https://github.com/minigo-storage/minigo/pulls),
+with `main` as the base branch. Follow the [security policy](SECURITY.md) for
+security concerns.
 
 | Object Browser                       | Creating a bucket                     | Object Details                  |
 |--------------------------------------|-------------------------------|---------------------------------|
@@ -216,4 +225,4 @@ The detailed logging also includes all request and response headers (if any).
  
 # Contribute to console Project
 
-Please follow console [Contributor's Guide](https://github.com/minio/console/blob/master/CONTRIBUTING.md)
+Please follow the [Minigo Console contribution guide](CONTRIBUTING.md).

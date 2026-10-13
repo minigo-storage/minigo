@@ -1,4 +1,4 @@
-# ILM Tiering Design [![slack](https://slack.min.io/slack?type=svg)](https://slack.min.io) [![Docker Pulls](https://img.shields.io/docker/pulls/minio/minio.svg?maxAge=604800)](https://hub.docker.com/r/minio/minio/)
+# ILM Tiering Design [Issues (GitHub sign-in required)](https://github.com/minigo-storage/minigo/issues) [![Docker Pulls](https://img.shields.io/docker/pulls/minio/minio.svg?maxAge=604800)](https://hub.docker.com/r/minio/minio/)
 
 Lifecycle transition functionality provided in [bucket lifecycle guide](https://github.com/minio/minio/master/docs/bucket/lifecycle/README.md) allows tiering of content from MinIO object store to public clouds or other MinIO clusters.
 

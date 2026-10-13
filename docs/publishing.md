@@ -4,6 +4,42 @@ The [Publish Docker images workflow](../.github/workflows/publish-images.yml)
 publishes `minigostorage/minigo` on Docker Hub. It is manually dispatched from
 `main`; ordinary commits and pull requests do not publish images.
 
+## Semantic versions
+
+Minigo starts at **3.0.0**, one major version above the bundled upstream
+Console/Object Browser's **2.0.4** (see its [changelog](../console/CHANGELOG.md)).
+MinIO Server used timestamp releases; its last tagged release was
+[`RELEASE.2025-10-15T17-29-55Z`](https://github.com/minio/minio/releases/tag/RELEASE.2025-10-15T17-29-55Z).
+Minigo's semantic versions identify the complete server and console distribution.
+Internal server version timestamps remain compatible with `mc` and the admin
+protocol; the image's `org.opencontainers.image.version` label records the
+Minigo release version. Local builds use `dev` unless `MINIGO_VERSION` is set.
+
+Choose an increment when dispatching the workflow:
+
+| Increment | Use for | Example after 3.0.0 |
+| --- | --- | --- |
+| `patch` (default) | Compatible fixes and maintenance | 3.0.1 |
+| `minor` | Compatible new features | 3.1.0 |
+| `major` | Breaking changes | 4.0.0 |
+
+The first release is always 3.0.0. Subsequent versions are calculated from the
+highest stable `vMAJOR.MINOR.PATCH` Git tag. Prerelease and upstream timestamp
+tags are ignored. A fresh run must include the latest release and contain a
+new source commit. The workflow checks the version again before publication
+to prevent an older run from replacing a newer release.
+
+After both architectures pass, the publish job reserves the Git tag at the
+tested source commit, publishes the images and creates a GitHub release with
+generated notes and the image digest. The job uses `contents: write` permission;
+build jobs retain read-only repository access.
+
+If publication fails after reserving a tag, rerun **failed jobs** on the same
+workflow run while its tested image artifacts are still available. This resumes
+the reserved version using those artifacts. Do not move or delete release tags;
+an abandoned reservation can leave a gap in version numbers. A new release from
+a later commit advances beyond the reserved version.
+
 ## Credentials
 
 The GitHub repository needs the Actions variable `DOCKERHUB_USERNAME` and the
@@ -24,7 +60,7 @@ starting the builds and passes the token only to authentication steps.
 ## Build, test and publish
 
 ```sh
-gh workflow run publish-images.yml --repo minigo-storage/minigo --ref main
+gh workflow run publish-images.yml --repo minigo-storage/minigo --ref main -f increment=patch
 gh run list --repo minigo-storage/minigo --workflow publish-images.yml
 gh run watch RUN_ID --repo minigo-storage/minigo --exit-status
 ```
@@ -44,6 +80,8 @@ updating `latest`.
 ## Tags and evidence
 
 - `latest`: the most recently published successful build from `main`.
+- `3.0.0` and `v3.0.0` (for example): the versioned multi-platform image. The
+  matching Git tag and GitHub release use `v3.0.0`.
 - `sha-FULL_COMMIT_SHA`: a build of that source revision. Rerunning a source
   revision can refresh OS packages, so use a digest for an immutable deployment.
 - `build-RUN_ID-ATTEMPT`: the combined image for one specific workflow attempt.
@@ -56,6 +94,7 @@ reports for thirty days. Test output remains in the workflow logs.
 
 ```sh
 docker buildx imagetools inspect minigostorage/minigo:latest
+docker pull minigostorage/minigo:3.0.0
 docker pull --platform linux/amd64 minigostorage/minigo:latest
 docker pull --platform linux/arm64 minigostorage/minigo:latest
 ```
@@ -65,3 +104,6 @@ These checks complement the existing-volume compatibility evidence in
 publication workflow does not rerun the large cached-official-image volume-swap
 suite; distributed upgrades and production-specific qualification remain outside
 this release check.
+
+The version selection and recovery checks can be run locally with
+`python3 scripts/test-release-version.py`.

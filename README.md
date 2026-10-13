@@ -5,7 +5,8 @@ console. It retains the MinIO storage engine, disk formats, S3/admin protocols,
 `mc` integration, server flags and `MINIO_*` configuration. Security fixes and
 their compatibility effects are listed in [security notes](docs/minigo-security.md).
 
-The source repository is [minigo-storage/minigo](https://github.com/minigo-storage/minigo).
+Minigo is maintained independently in
+[minigo-storage/minigo](https://github.com/minigo-storage/minigo).
 An optional, separate `reference/minio/` checkout retains unchanged upstream
 history, tests and fixtures; see [reference setup](reference/UPSTREAM.md).
 Images are published to [Docker Hub](https://hub.docker.com/r/minigostorage/minigo)
@@ -15,8 +16,21 @@ for Linux amd64 and arm64. Docker selects the matching platform automatically:
 docker pull minigostorage/minigo:latest
 ```
 
-Use the recorded image digest to pin a deployment. See
+Versioned releases start at `3.0.0` and are also available as
+`minigostorage/minigo:3.0.0`. Use the recorded image digest to pin a deployment. See
 [image publication](docs/publishing.md) for tags, checks and the release workflow.
+
+## Contact and contributions
+
+Submit suggestions, bug reports and patch requests through
+[this repository's issues](https://github.com/minigo-storage/minigo/issues).
+Only authenticated GitHub users may submit issues or participate in discussions;
+sign in to your GitHub account first. All project contact is handled through issues.
+
+Contribute patches by raising a
+[pull request against this repository](https://github.com/minigo-storage/minigo/pulls),
+with `main` as the base branch. See the [contribution guide](CONTRIBUTING.md).
+For security concerns, follow the [security policy](SECURITY.md).
 
 ## Build and run
 

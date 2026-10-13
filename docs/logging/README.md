@@ -1,4 +1,4 @@
-# MinIO Logging Quickstart Guide [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
+# MinIO Logging Quickstart Guide [Issues (GitHub sign-in required)](https://github.com/minigo-storage/minigo/issues)
 
 This document explains how to configure MinIO server to log to different logging targets.
 

@@ -1,4 +1,4 @@
-# Distributed Server Design Guide [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
+# Distributed Server Design Guide [Issues (GitHub sign-in required)](https://github.com/minigo-storage/minigo/issues)
 
 This document explains the design, architecture and advanced use cases of the MinIO distributed server.
 
