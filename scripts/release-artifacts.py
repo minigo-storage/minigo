@@ -103,7 +103,10 @@ def check_evidence(directory, candidate, expected_digest=None, now=None):
         require(sbom.get("bomFormat") == "CycloneDX" and sbom.get("components"), "missing image SBOM")
     compatibility = read(directory / "compatibility.json")
     require(compatibility.get("passed") is True, "compatibility suite did not pass")
-    require(compatibility.get("targetImage") == candidate["images"]["arm64"]["image_id"], "compatibility test used another image")
+    # test-compatibility.sh records Docker's image ID followed by architecture.
+    expected_target = f"{candidate['images']['arm64']['image_id']} arm64"
+    require(compatibility.get("targetImage") == expected_target, "compatibility test used another image or architecture")
+    require(compatibility.get("platform") == "linux/arm64", "compatibility test used another platform")
     require(compatibility.get("smallObjects", 0) >= 10000 and compatibility.get("largeObjectBytes", 0) > 5 * 1024**3, "compatibility fixture was reduced")
     smoke = (directory / "hardened-smoke.txt").read_text()
     require(all(f"PASS linux/{arch}:" in smoke for arch in ARCHES), "hardened smoke tests did not pass on both architectures")
