@@ -1,8 +1,12 @@
-name: Publish Docker images
+name: Build Docker release candidates
 
 on:
   workflow_dispatch:
     inputs:
+      security_release:
+        description: Require local security qualification before publication
+        type: boolean
+        default: false
       increment:
         description: Version increment (first release is 3.0.0)
         type: choice
@@ -74,25 +78,27 @@ jobs:
             runner: ubuntu-24.04-arm
     env:
       MINIGO_ARCHES: ${{ matrix.arch }}
-      GOTOOLCHAIN: go1.27.2
+      GOTOOLCHAIN: go1.27.3
+      MINIGO_SECURITY_RELEASE: ${{ inputs.security_release }}
       CGO_ENABLED: '0'
       GOFLAGS: -p=4
       GOMAXPROCS: '4'
       MINIO_API_REQUESTS_MAX: '10000'
       MINIGO_VERSION: ${{ needs.credentials.outputs.version }}
+      MINIGO_INCREMENT: ${{ inputs.increment }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.2'
+          go-version: '1.27.3'
           cache-dependency-path: |
             go.sum
             console/go.sum
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: console/web-app/package-lock.json
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -108,11 +114,31 @@ jobs:
         run: make smoke
       - name: Check source and frontend vulnerabilities
         run: make security
-      - name: Check image vulnerabilities and existing assessments
-        run: make image-security
+      - name: Test hardened runtime
+        run: ./scripts/smoke-hardened.sh
+      - name: Check release artifact validation
+        run: python3 scripts/test-release-artifacts.py
+      - name: Check Helm security configurations
+        if: matrix.arch == 'amd64'
+        run: |
+          helm lint helm/minio
+          go test ./tests/helm
       - name: Save the tested image
         run: |
           mkdir -p dist/publish
+          python3 - <<'PY'
+          import json, os, pathlib
+          candidate = {
+              "architecture": os.environ["MINIGO_ARCHES"],
+              "source_sha": os.environ["GITHUB_SHA"],
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "run_attempt": os.environ["GITHUB_RUN_ATTEMPT"],
+              "version": os.environ["MINIGO_VERSION"],
+              "increment": os.environ["MINIGO_INCREMENT"],
+              "security_release": os.environ["MINIGO_SECURITY_RELEASE"] == "true",
+          }
+          pathlib.Path("dist/publish/candidate.json").write_text(json.dumps(candidate, indent=2) + "\n")
+          PY
           docker image inspect "minigo:local-$MINIGO_ARCHES" > dist/publish/image.json
           docker save "minigo:local-$MINIGO_ARCHES" | gzip > dist/publish/image.tar.gz
           sha256sum dist/publish/image.tar.gz > dist/publish/image.tar.gz.sha256
@@ -132,97 +158,3 @@ jobs:
           path: dist/security/
           retention-days: 30
           if-no-files-found: ignore
-
-  publish:
-    name: Publish tested images and multi-platform tags
-    needs: [credentials, build]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    permissions:
-      contents: write
-    env:
-      MINIGO_VERSION: ${{ needs.credentials.outputs.version }}
-      INCREMENT: ${{ inputs.increment }}
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: minigo-image-*
-          path: images
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Reserve the version for this tested source
-        run: |
-          python3 scripts/next-release-version.py "$INCREMENT" "$MINIGO_VERSION"
-          if ! git show-ref --verify --quiet "refs/tags/v$MINIGO_VERSION"; then
-            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
-              -f "ref=refs/tags/v$MINIGO_VERSION" -f "sha=$GITHUB_SHA"
-          fi
-      - name: Push the exact tested images and publish the index
-        run: |
-          build_tag="build-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          refs=()
-          for arch in amd64 arm64; do
-            artifact="images/minigo-image-$arch"
-            expected_archive=$(awk '{print $1}' "$artifact/image.tar.gz.sha256")
-            printf '%s  %s\n' "$expected_archive" "$artifact/image.tar.gz" | sha256sum --check
-            docker load --input "$artifact/image.tar.gz"
-            local_image="minigo:local-$arch"
-            docker image inspect "$local_image" > loaded.json
-            jq -e --arg arch "$arch" --arg revision "$GITHUB_SHA" --arg version "$MINIGO_VERSION" \
-              '.[0] | .Os == "linux" and .Architecture == $arch and .Config.Labels["org.opencontainers.image.revision"] == $revision and .Config.Labels["org.opencontainers.image.version"] == $version' loaded.json
-            test "$(jq -r '.[0].Id' loaded.json)" = "$(jq -r '.[0].Id' "$artifact/image.json")"
-            target="$IMAGE_NAME:$build_tag-$arch"
-            docker tag "$local_image" "$target"
-            docker push "$target"
-            refs+=("$(docker image inspect "$target" --format '{{index .RepoDigests 0}}')")
-          done
-          docker buildx imagetools create --tag "$IMAGE_NAME:$build_tag" "${refs[@]}"
-          docker buildx imagetools inspect "$IMAGE_NAME:$build_tag" --raw > manifest.json
-          jq -e '[.manifests[].platform | .os + "/" + .architecture] | sort == ["linux/amd64", "linux/arm64"]' manifest.json
-          digest=$(docker buildx imagetools inspect "$IMAGE_NAME:$build_tag" --format '{{json .Manifest}}' | jq -r .digest)
-          test -n "$digest" && test "$digest" != null
-          docker buildx imagetools create \
-            --tag "$IMAGE_NAME:$MINIGO_VERSION" \
-            --tag "$IMAGE_NAME:v$MINIGO_VERSION" \
-            --tag "$IMAGE_NAME:sha-$GITHUB_SHA" \
-            --tag "$IMAGE_NAME:latest" "$IMAGE_NAME@$digest"
-          docker buildx imagetools inspect "$IMAGE_NAME:latest"
-          {
-            echo '### Published Minigo images'
-            echo "- Version: v$MINIGO_VERSION"
-            echo "- Source: $GITHUB_SHA"
-            echo "- Platforms: linux/amd64, linux/arm64"
-            echo "- Image: $IMAGE_NAME:latest"
-            echo "- Source tag: $IMAGE_NAME:sha-$GITHUB_SHA"
-            echo "- Build tag: $IMAGE_NAME:$build_tag"
-            echo "- Digest: $IMAGE_NAME@$digest"
-          } >> "$GITHUB_STEP_SUMMARY"
-          {
-            echo "Minigo $MINIGO_VERSION for Linux amd64 and arm64."
-            echo
-            echo "Docker image: $IMAGE_NAME:$MINIGO_VERSION"
-            echo "Digest: $IMAGE_NAME@$digest"
-            echo "Source: $GITHUB_SHA"
-          } > release-notes.md
-      - name: Publish the GitHub release
-        run: |
-          if ! gh release view "v$MINIGO_VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release create "v$MINIGO_VERSION" --repo "$GITHUB_REPOSITORY" \
-              --verify-tag --title "Minigo $MINIGO_VERSION" \
-              --generate-notes --notes-file release-notes.md
-          fi
-
-  description:
-    name: Update Docker Hub description
-    needs: publish
-    uses: ./.github/workflows/dockerhub-description.yml
-    secrets:
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

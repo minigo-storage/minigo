@@ -16,8 +16,8 @@ for Linux amd64 and arm64. Docker selects the matching platform automatically:
 docker pull minigostorage/minigo:latest
 ```
 
-Versioned releases start at `3.0.0` and are also available as
-`minigostorage/minigo:3.0.0`. Use the recorded image digest to pin a deployment. See
+Versioned releases start at `3.0.0`; the current security release is available as
+`minigostorage/minigo:3.0.1`. Use the recorded image digest to pin a deployment. See
 [image publication](docs/publishing.md) for tags, checks and the release workflow.
 
 ## Contact and contributions
@@ -34,7 +34,7 @@ For security concerns, follow the [security policy](SECURITY.md).
 
 ## Build and run
 
-Requires Go (the scripts select Go 1.27.2), Node.js 24, npm, Git, Make and Docker
+Requires Go (the scripts select Go 1.27.3), Node.js 24.22.2 (`.nvmrc`), npm, Git, Make and Docker
 with Buildx/Compose. First builds need network access for pinned Go/npm modules,
 the digest-pinned Alpine base, and current OS security packages. No MinIO image
 registry or discontinued binary download is needed to build Minigo.
@@ -134,7 +134,7 @@ MINIO_API_REQUESTS_MAX=10000 CGO_ENABLED=0 go test -p 4 -tags kqueue,dev -timeou
 go test github.com/minio/console/api
 npm --prefix console/web-app test
 make security
-make image-security
+make image-security  # local only, for focused security updates
 ```
 
 Browser integration tests are in `console/web-app/tests-minigo/integration.mjs`;

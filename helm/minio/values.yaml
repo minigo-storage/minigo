@@ -13,8 +13,8 @@ clusterDomain: cluster.local
 ## Set default image, imageTag, and imagePullPolicy. mode is used to indicate the
 ##
 image:
-  repository: quay.io/minio/minio
-  tag: RELEASE.2024-12-18T13-15-44Z
+  repository: minigostorage/minigo
+  tag: "3.0.1"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -24,8 +24,8 @@ imagePullSecrets: []
 ## client used to create a default bucket).
 ##
 mcImage:
-  repository: quay.io/minio/mc
-  tag: RELEASE.2024-11-21T17-21-54Z
+  repository: minigostorage/minigo
+  tag: "3.0.1"
   pullPolicy: IfNotPresent
 
 ## minio mode, i.e. standalone or distributed
@@ -272,16 +272,22 @@ affinity: {}
 topologySpreadConstraints: []
 
 ## Add stateful containers to have security context, if enabled MinIO will run as this
-## user and group NOTE: securityContext is only enabled if persistence.enabled=true
+## user and group. Applies with persistent and ephemeral storage.
 securityContext:
   enabled: true
   runAsUser: 1000
   runAsGroup: 1000
   fsGroup: 1000
   fsGroupChangePolicy: "OnRootMismatch"
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
 
 containerSecurityContext:
-  readOnlyRootFilesystem: false
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
 
 # Additational pod annotations
 podAnnotations: {}
@@ -355,9 +361,17 @@ policies: []
 ## Additional Annotations for the Kubernetes Job makePolicyJob
 makePolicyJob:
   securityContext:
-    enabled: false
+    enabled: true
     runAsUser: 1000
     runAsGroup: 1000
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
   resources:
     requests:
       memory: 128Mi
@@ -366,15 +380,17 @@ makePolicyJob:
 
 ## List of users to be created after minio install
 ##
-users:
+users: []
   ## Username, password and policy to be assigned to the user
   ## Default policies are [readonly|readwrite|writeonly|consoleAdmin|diagnostics]
   ## Add new policies as explained here https://docs.min.io/community/minio-object-store/administration/identity-access-management.html#access-management
   ## NOTE: this will fail if LDAP is enabled in your MinIO deployment
   ## make sure to disable this if you are using LDAP.
-  - accessKey: console
-    secretKey: console123
-    policy: consoleAdmin
+  # No default accounts. Supply a unique secret explicitly when creating users.
+  # - accessKey: operator
+  #   existingSecret: console-operator
+  #   existingSecretKey: password
+  #   policy: consoleAdmin
   # Or you can refer to specific secret
   #- accessKey: externalSecret
   #  existingSecret: my-secret
@@ -384,9 +400,17 @@ users:
 ## Additional Annotations for the Kubernetes Job makeUserJob
 makeUserJob:
   securityContext:
-    enabled: false
+    enabled: true
     runAsUser: 1000
     runAsGroup: 1000
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
   resources:
     requests:
       memory: 128Mi
@@ -424,9 +448,17 @@ svcaccts:
 
 makeServiceAccountJob:
   securityContext:
-    enabled: false
+    enabled: true
     runAsUser: 1000
     runAsGroup: 1000
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
   resources:
     requests:
       memory: 128Mi
@@ -461,9 +493,17 @@ buckets:
 ## Additional Annotations for the Kubernetes Job makeBucketJob
 makeBucketJob:
   securityContext:
-    enabled: false
+    enabled: true
     runAsUser: 1000
     runAsGroup: 1000
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
   resources:
     requests:
       memory: 128Mi
@@ -478,9 +518,17 @@ customCommands:
 ## Additional Annotations for the Kubernetes Job customCommandJob
 customCommandJob:
   securityContext:
-    enabled: false
+    enabled: true
     runAsUser: 1000
     runAsGroup: 1000
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: [ALL]
   resources:
     requests:
       memory: 128Mi
@@ -504,9 +552,12 @@ postJob:
   podAnnotations: {}
   annotations: {}
   securityContext:
-    enabled: false
+    enabled: true
     runAsUser: 1000
     runAsGroup: 1000
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
     fsGroup: 1000
   nodeSelector: {}
   tolerations: []

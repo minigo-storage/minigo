@@ -1,142 +1,149 @@
 # Publishing Minigo images
 
-The [Publish Docker images workflow](../.github/workflows/publish-images.yml)
-publishes `minigostorage/minigo` on Docker Hub. It is manually dispatched from
-`main`; ordinary commits and pull requests do not publish images.
+Minigo publishes `minigostorage/minigo` for Linux amd64 and arm64. Builds and
+publication are separate, manually dispatched workflows on `main`. Ordinary
+commits and pull requests do not publish images. A release always promotes the
+same image archives that passed native CI tests; it never rebuilds them.
 
-## Semantic versions
+## Versions and candidates
 
-Minigo starts at **3.0.0**, one major version above the bundled upstream
-Console/Object Browser's **2.0.4** (see its [changelog](../console/CHANGELOG.md)).
-MinIO Server used timestamp releases; its last tagged release was
-[`RELEASE.2025-10-15T17-29-55Z`](https://github.com/minio/minio/releases/tag/RELEASE.2025-10-15T17-29-55Z).
-Minigo's semantic versions identify the complete server and console distribution.
-Internal server version timestamps remain compatible with `mc` and the admin
-protocol; the image's `org.opencontainers.image.version` label records the
-Minigo release version. Local builds use `dev` unless `MINIGO_VERSION` is set.
+Versions start at 3.0.0. Choose `patch`, `minor` or `major`; compatible security
+fixes use `patch`. The candidate workflow selects the next version from stable
+Git tags and records it, the increment, source SHA, run/attempt, architecture and
+security-release classification beside each image archive.
 
-Choose an increment when dispatching the workflow:
+```sh
+gh workflow run publish-images.yml --repo minigo-storage/minigo --ref main \
+  -f increment=patch -f security_release=true
+gh run list --repo minigo-storage/minigo --workflow publish-images.yml
+gh run watch RUN_ID --repo minigo-storage/minigo --exit-status
+```
 
-| Increment | Use for | Example after 3.0.0 |
-| --- | --- | --- |
-| `patch` (default) | Compatible fixes and maintenance | 3.0.1 |
-| `minor` | Compatible new features | 3.1.0 |
-| `major` | Breaking changes | 4.0.0 |
+Both native architectures must pass frontend tests, backend/console tests,
+ordinary S3 smoke tests, non-root/read-only runtime tests, Go vulnerability checks
+and the npm audit. Archives, their checksums and image metadata are retained for
+seven days. Go reports are retained for thirty days. Candidate creation does not
+reserve a Git tag or change Docker Hub tags.
 
-The first release is always 3.0.0. Subsequent versions are calculated from the
-highest stable `vMAJOR.MINOR.PATCH` Git tag. Prerelease and upstream timestamp
-tags are ignored. A fresh run must include the latest release and contain a
-new source commit. The workflow checks the version again before publication
-to prevent an older run from replacing a newer release.
+## Focused security releases
 
-After both architectures pass, the publish job reserves the Git tag at the
-tested source commit, publishes the images and creates a GitHub release with
-generated notes and the image digest. The job uses `contents: write` permission;
-build jobs retain read-only repository access.
+Trivy runs **only on a maintainer's local workstation**, never on hosted or
+self-hosted GitHub Actions runners. Do not scan images for every routine feature,
+fix or test-cleanup release. The scan and qualification scripts refuse to run
+when `GITHUB_ACTIONS=true`; workflow regression checks also enforce this boundary.
 
-If publication fails after reserving a tag, rerun **failed jobs** on the same
-workflow run while its tested image artifacts are still available. This resumes
-the reserved version using those artifacts. Do not move or delete release tags;
-an abandoned reservation can leave a gap in version numbers. A new release from
-a later commit advances beyond the reserved version.
+For a security candidate, check out its exact source commit with no tracked
+changes and run:
 
-## Credentials
+```sh
+scripts/qualify-release.sh RUN_ID
+```
 
-The GitHub repository needs the Actions variable `DOCKERHUB_USERNAME` and the
-Actions secret `DOCKERHUB_TOKEN`. For a Docker personal access token, the username
-is the token owner's personal Docker ID. That account needs admin access to
-`minigostorage/minigo`, and the token needs **Repo Read, Write, Delete** permission
-so releases can push images and update the repository description.
-The Docker Hub repository must be public.
+Prerequisites are Docker with cross-architecture execution, Go, npm-installed
+frontend dependencies and Playwright Chromium, `gh`, `mc`, curl and Python 3. The
+existing official MinIO arm64 baseline must be available locally for compatibility
+testing; see [the suite](../tests/compatibility/README.md). The command:
+
+1. Downloads artifacts from the successful candidate run, verifies repository,
+   workflow, main branch, source SHA, run attempt, platform, version and checksums,
+   then loads and verifies both image IDs.
+2. Tests both hardened runtimes, runs desktop/mobile browser journeys against a
+   disposable deployment, and runs the full 10,000-object / >5 GiB same-volume
+   upgrade, interrupted-write recovery and rollback suite on arm64.
+3. Scans the exact archives with digest-pinned Trivy, without mounting the Docker
+   socket. It retains all severities and unfixed findings, evaluates the narrowly
+   documented source assessments, and generates CycloneDX SBOMs.
+4. Creates a receipt binding the reports, SBOMs, scanner/database metadata and
+   acceptance evidence to both archive checksums, image IDs and source SHA.
+5. Uploads evidence to a draft GitHub release and prints the publication command.
+
+Only the evidence directory is uploaded. Compatibility test credentials remain
+in the ignored local test directory. Reports expire after 24 hours and the
+vulnerability database must be at most 48 hours old. Requalify if they expire or
+if the source, candidate attempt, images or evidence changes.
+
+Run the printed command to publish:
+
+```sh
+gh workflow run promote-images.yml --repo minigo-storage/minigo --ref main \
+  -f candidate_run_id=RUN_ID -f assessment_sha256=PRINTED_SHA256
+```
+
+The promotion workflow verifies the receipt checksum and every referenced file,
+re-evaluates raw findings, and confirms the acceptance tests used the same images.
+The checksum is an explicit maintainer-approved binding to locally produced
+evidence, not an independent scanner attestation. Only trusted repository writers
+should dispatch publication or update draft release assets. The source must still
+match the promotion workflow's `main` commit.
+
+For a routine release, build with `security_release=false` (the default), then
+invoke `promote-images.yml` with its candidate run ID. No Trivy scan or security
+receipt is required. Native tests, Go checks, npm audit and artifact integrity
+checks still apply.
+
+## Publication and recovery
+
+The promotion job rechecks version ordering, reserves the Git tag at the tested
+source, pushes the verified images and checks the combined index has exactly
+Linux amd64 and arm64. It updates these tags to that index:
+
+- `3.0.1` and `v3.0.1` (for example).
+- `sha-FULL_COMMIT_SHA`.
+- `latest`.
+- A unique `build-CANDIDATE_RUN-promote-RUN-ATTEMPT` tag, plus architecture tags.
+
+The index digest, source SHA and version are recorded in the workflow summary
+and GitHub release. Use the digest for immutable deployments. A source tag alone
+is not an immutable package selection because fresh builds refresh OS packages.
+
+If publication fails after reserving a tag, rerun **failed jobs** on the same run
+while artifacts and security evidence remain valid. Do not move or delete release
+tags. If only the description job fails, rerun that job; the images and release
+are already published. A new release from a later commit advances past any
+abandoned reserved version.
+
+After publication, inspect the index and test the remote images:
+
+```sh
+docker buildx imagetools inspect minigostorage/minigo:3.0.1
+docker pull --platform linux/amd64 minigostorage/minigo:3.0.1
+docker pull --platform linux/arm64 minigostorage/minigo:3.0.1
+```
+
+Source versions inside the server retain timestamp compatibility with `mc` and
+the admin API. The OCI version label identifies the complete Minigo distribution.
+
+## Credentials and description
+
+The repository needs the Actions variable `DOCKERHUB_USERNAME` and secret
+`DOCKERHUB_TOKEN`. The Docker ID must have admin access to the public
+`minigostorage/minigo` repository. The current shared token needs **Repo Read,
+Write, Delete** permission because Docker Hub description updates require it.
+Only the login and description steps receive this secret; it is not passed to
+build or test code. Repository access is read-only except in the promotion job.
 
 ```sh
 gh variable set DOCKERHUB_USERNAME --repo minigo-storage/minigo --body YOUR_DOCKER_ID
 gh secret set DOCKERHUB_TOKEN --repo minigo-storage/minigo --app actions
 ```
 
-The second command prompts for the token; do not put the token in a command
-argument, commit it, or paste it into an issue. The workflow authenticates before
-starting the builds and passes the token only to the Docker login and description
-actions.
+The second command prompts for the token. Never put its value in a command,
+commit or issue. The permission requirement is documented by the
+[description action](https://github.com/peter-evans/dockerhub-description) and
+[Docker](https://docs.docker.com/security/access-tokens/reference/). A token with
+only Read & Write can push images but receives `Forbidden` when updating the
+README. Docker personal tokens can affect other repositories their owner manages.
 
-## Build, test and publish
-
-Each successful image release calls the
-[description workflow](../.github/workflows/dockerhub-description.yml) as its
-final job, publishing the README from the same source commit as the release.
-The overview can also be refreshed independently from the current README:
+Successful publication calls the description workflow using the same source
+commit. Refresh the description independently with:
 
 ```sh
 gh workflow run dockerhub-description.yml --repo minigo-storage/minigo --ref main
 ```
 
-This updates the short description and full README, converting relative links
-to GitHub URLs so the contribution guide, security policy and other documents
-remain accessible from Docker Hub. It uses the existing Docker Hub credentials
-and does not rebuild images, change image tags or increment the release version.
-Docker Hub description updates require repository admin access and a personal
-access token with **Repo Read, Write, Delete** permission, as documented by the
-[description action](https://github.com/peter-evans/dockerhub-description).
-An image-publishing token with only Read & Write permission can authenticate
-successfully but receive `Forbidden` when updating the description. Change the
-existing token's scope in Docker account settings; its value and the GitHub
-secret do not need to change. This scope also permits image deletion across the
-repositories the token owner can manage; Docker personal tokens cannot be
-restricted to just one repository. See
-[Docker's token permissions](https://docs.docker.com/security/access-tokens/reference/).
-
-If description publication fails, the images and GitHub release remain published
-and the release workflow reports failure. Rerun only its failed description job,
-or use the independent workflow above to publish the current README. Neither
-approach rebuilds images or increments the version.
-
-To publish new images:
+Release safeguards can be tested locally with:
 
 ```sh
-gh workflow run publish-images.yml --repo minigo-storage/minigo --ref main -f increment=patch
-gh run list --repo minigo-storage/minigo --workflow publish-images.yml
-gh run watch RUN_ID --repo minigo-storage/minigo --exit-status
+python3 scripts/test-release-version.py
+python3 scripts/test-release-artifacts.py
 ```
-
-Each platform runs on its own native GitHub-hosted Ubuntu runner. The workflow
-uses the existing build scripts, frontend tests, backend and console API tests,
-real image startup and S3 smoke tests, source vulnerability checks and image
-scans. The documented scanner assessments remain visible and unassessed image
-findings fail the run.
-
-Both platforms must pass before the publish job starts. It downloads the tested
-Docker image archives, verifies their archive checksums, image IDs, architecture
-and source revision, and pushes those exact images without rebuilding. It then
-checks that the combined index contains exactly Linux amd64 and arm64 before
-updating `latest`.
-
-## Tags and evidence
-
-- `latest`: the most recently published successful build from `main`.
-- `3.0.0` and `v3.0.0` (for example): the versioned multi-platform image. The
-  matching Git tag and GitHub release use `v3.0.0`.
-- `sha-FULL_COMMIT_SHA`: a build of that source revision. Rerunning a source
-  revision can refresh OS packages, so use a digest for an immutable deployment.
-- `build-RUN_ID-ATTEMPT`: the combined image for one specific workflow attempt.
-- `build-RUN_ID-ATTEMPT-amd64` and `build-RUN_ID-ATTEMPT-arm64`: the individual
-  platform images used by that index.
-
-The workflow summary records the source SHA, tags and index digest. Tested image
-archives are retained as GitHub Actions artifacts for seven days and raw security
-reports for thirty days. Test output remains in the workflow logs.
-
-```sh
-docker buildx imagetools inspect minigostorage/minigo:latest
-docker pull minigostorage/minigo:3.0.0
-docker pull --platform linux/amd64 minigostorage/minigo:latest
-docker pull --platform linux/arm64 minigostorage/minigo:latest
-```
-
-These checks complement the existing-volume compatibility evidence in
-[validation](validation.md) and [performance results](performance.md). The
-publication workflow does not rerun the large cached-official-image volume-swap
-suite; distributed upgrades and production-specific qualification remain outside
-this release check.
-
-The version selection and recovery checks can be run locally with
-`python3 scripts/test-release-version.py`.

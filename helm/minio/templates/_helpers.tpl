@@ -149,11 +149,16 @@ Formats volumeMount for MinIO TLS keys and trusted certs
 {{- if .Values.tls.enabled }}
 - name: cert-secret-volume
   mountPath: {{ .Values.certsPath }}
+  readOnly: true
+{{- else }}
+- name: cert-workspace
+  mountPath: {{ .Values.certsPath }}
 {{- end }}
 {{- if or .Values.tls.enabled (ne .Values.trustedCertsSecret "") }}
 {{- $casPath := printf "%s/CAs" .Values.certsPath | clean }}
 - name: trusted-cert-secret-volume
   mountPath: {{ $casPath }}
+  readOnly: true
 {{- end }}
 {{- end -}}
 
@@ -170,6 +175,9 @@ Formats volume for MinIO TLS keys and trusted certs
       path: public.crt
     - key: {{ .Values.tls.privateKey }}
       path: private.key
+{{- else }}
+- name: cert-workspace
+  emptyDir: {}
 {{- end }}
 {{- if or .Values.tls.enabled (ne .Values.trustedCertsSecret "") }}
 {{- $certSecret := eq .Values.trustedCertsSecret "" | ternary .Values.tls.certSecret .Values.trustedCertsSecret }}
