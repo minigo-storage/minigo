@@ -48,7 +48,7 @@ class ReleaseEvidenceTests(unittest.TestCase):
         self.write(self.evidence / "image-assessment.json", [
             {"architecture": a, "image_id": f"sha256:{a}", "findings": []} for a in release.ARCHES])
         self.write(self.evidence / "scanner.json", {"Version": "0.76.2", "VulnerabilityDB": {"UpdatedAt": self.now.isoformat()}})
-        self.write(self.evidence / "compatibility.json", {"passed": True, "targetImage": "sha256:arm64", "smallObjects": 10000, "largeObjectBytes": 5369757696})
+        self.write(self.evidence / "compatibility.json", {"passed": True, "targetImage": "sha256:arm64 arm64", "platform": "linux/arm64", "smallObjects": 10000, "largeObjectBytes": 5369757696})
         (self.evidence / "hardened-smoke.txt").write_text("PASS linux/amd64: ok\nPASS linux/arm64: ok\n")
         (self.evidence / "browser-smoke.txt").write_text("PASS real UI login, bucket operations and mobile checks\n")
         self.receipt = {"candidate": self.candidate, "scanner": release.SCANNER, "created_at": self.now.isoformat()}
@@ -124,6 +124,18 @@ class ReleaseEvidenceTests(unittest.TestCase):
         self.refresh_receipt()
         with self.assertRaisesRegex(ValueError, "reduced"):
             self.verify()
+
+    def test_reject_other_compatibility_image_architecture_or_platform(self):
+        path = self.evidence / "compatibility.json"
+        original = release.read(path)
+        for key, value in (("targetImage", "sha256:other arm64"),
+                           ("targetImage", "sha256:arm64 amd64"),
+                           ("platform", "linux/amd64")):
+            with self.subTest(key=key, value=value):
+                self.write(path, {**original, key: value})
+                self.refresh_receipt()
+                with self.assertRaisesRegex(ValueError, "another image|another platform"):
+                    self.verify()
 
     def test_scanner_refuses_github_actions_before_invoking_docker(self):
         result = subprocess.run(["sh", "scripts/check-image-security.sh"],
