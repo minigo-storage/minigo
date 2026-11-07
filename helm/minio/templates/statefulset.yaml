@@ -81,7 +81,7 @@ spec:
       {{- if .Values.runtimeClassName }}
       runtimeClassName: "{{ .Values.runtimeClassName }}"
       {{- end }}
-      {{- if and .Values.securityContext.enabled .Values.persistence.enabled }}
+      {{- if .Values.securityContext.enabled }}
       securityContext:
         {{- omit .Values.securityContext "enabled" | toYaml | nindent 8 }}
       {{- end }}
@@ -98,6 +98,8 @@ spec:
             "/usr/bin/docker-entrypoint.sh minio server {{- range $i := until $poolCount }}{{ $factor := mul $i $nodeCount }}{{ $endIndex := add $factor $nodeCount }}{{ $beginIndex := mul $i $nodeCount }} {{ $scheme }}://{{ template `minio.fullname` $ }}-{{ `{` }}{{ $beginIndex }}...{{ sub $endIndex 1 }}{{ `}`}}.{{ template `minio.fullname` $ }}-svc.{{ $.Release.Namespace }}.svc{{if (gt $drivesPerNode 1)}}{{ $bucketRoot }}-{{ `{` }}0...{{ sub $drivesPerNode 1 }}{{ `}` }}{{ else }}{{ $bucketRoot }}{{end }}{{- end }} -S {{ .Values.certsPath }} --address :{{ .Values.minioAPIPort }} --console-address :{{ .Values.minioConsolePort }} {{- template `minio.extraArgs` . }}"
           ]
           volumeMounts:
+            - name: runtime-tmp
+              mountPath: /tmp
             {{- if $penabled }}
             {{- if (gt $drivesPerNode 1) }}
             {{- range $i := until $drivesPerNode }}
@@ -129,6 +131,8 @@ spec:
             - name: {{ $scheme }}-console
               containerPort: {{ .Values.minioConsolePort }}
           env:
+            - name: HOME
+              value: /tmp
             - name: MINIO_ROOT_USER
               valueFrom:
                 secretKeyRef:
@@ -186,7 +190,7 @@ spec:
               value: {{ tpl $val $ | quote }}
             {{- end }}
           resources: {{- toYaml .Values.resources | nindent 12 }}
-          {{- if and .Values.securityContext.enabled .Values.persistence.enabled }}
+          {{- if .Values.securityContext.enabled }}
           {{- with .Values.containerSecurityContext }}
           securityContext: {{ toYaml . | nindent 12}}
           {{- end }}
@@ -214,6 +218,19 @@ spec:
       {{- end }}
       {{- end }}
       volumes:
+        {{- if not .Values.persistence.enabled }}
+        {{- if gt $drivesPerNode 1 }}
+        {{- range $diskId := until $drivesPerNode }}
+        - name: export-{{ $diskId }}
+          emptyDir: {}
+        {{- end }}
+        {{- else }}
+        - name: export
+          emptyDir: {}
+        {{- end }}
+        {{- end }}
+        - name: runtime-tmp
+          emptyDir: {}
         - name: minio-user
           secret:
             secretName: {{ template "minio.secretName" . }}

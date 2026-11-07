@@ -58,7 +58,7 @@ func registerLogoutHandlers(api *operations.ConsoleAPI) {
 				MaxAge:   -1,
 				Expires:  time.Now().Add(-100 * time.Hour),
 				HttpOnly: true,
-				Secure:   len(GlobalPublicCerts) > 0,
+				Secure:   secureConsoleCookies(),
 				SameSite: http.SameSiteLaxMode,
 			})
 			authApi.NewLogoutOK().WriteResponse(w, p)

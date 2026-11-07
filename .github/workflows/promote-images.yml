@@ -1,0 +1,140 @@
+name: Publish verified Docker images
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Successful Build Docker release candidates run ID
+        type: string
+        required: true
+      assessment_sha256:
+        description: Local security-assessment.json SHA-256 (required for security candidates)
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dockerhub-minigo
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: minigostorage/minigo
+
+jobs:
+  publish:
+    name: Publish tested images and multi-platform tags
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+    env:
+      CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+      ASSESSMENT_SHA256: ${{ inputs.assessment_sha256 }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: minigo-image-*
+          path: images
+          run-id: ${{ inputs.candidate_run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify source, candidate run and local security evidence
+        run: |
+          test "$GITHUB_REPOSITORY" = minigo-storage/minigo
+          test "$GITHUB_REF" = refs/heads/main
+          python3 scripts/release-artifacts.py inspect images "$CANDIDATE_RUN_ID" > candidate.json
+          version=$(jq -r .version candidate.json)
+          security=$(jq -r .security_release candidate.json)
+          if [ "$security" = true ]; then
+            test -n "$ASSESSMENT_SHA256"
+            gh release download "v$version" --repo "$GITHUB_REPOSITORY" --dir evidence
+            python3 scripts/release-artifacts.py verify images "$CANDIDATE_RUN_ID" \
+              --evidence evidence --assessment-sha256 "$ASSESSMENT_SHA256"
+          else
+            python3 scripts/release-artifacts.py verify images "$CANDIDATE_RUN_ID"
+          fi
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Reserve the version for this tested source
+        run: |
+          python3 scripts/next-release-version.py "$(jq -r .increment candidate.json)" "$MINIGO_VERSION"
+          if ! git show-ref --verify --quiet "refs/tags/v$MINIGO_VERSION"; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=refs/tags/v$MINIGO_VERSION" -f "sha=$GITHUB_SHA"
+          fi
+      - name: Push the exact tested images and publish the index
+        run: |
+          build_tag="build-$CANDIDATE_RUN_ID-promote-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          refs=()
+          for arch in amd64 arm64; do
+            artifact="images/minigo-image-$arch"
+            expected_archive=$(awk '{print $1}' "$artifact/image.tar.gz.sha256")
+            printf '%s  %s\n' "$expected_archive" "$artifact/image.tar.gz" | sha256sum --check
+            docker load --input "$artifact/image.tar.gz"
+            local_image="minigo:local-$arch"
+            docker image inspect "$local_image" > loaded.json
+            jq -e --arg arch "$arch" --arg revision "$GITHUB_SHA" --arg version "$MINIGO_VERSION" \
+              '.[0] | .Os == "linux" and .Architecture == $arch and .Config.Labels["org.opencontainers.image.revision"] == $revision and .Config.Labels["org.opencontainers.image.version"] == $version' loaded.json
+            test "$(jq -r '.[0].Id' loaded.json)" = "$(jq -r '.[0].Id' "$artifact/image.json")"
+            target="$IMAGE_NAME:$build_tag-$arch"
+            docker tag "$local_image" "$target"
+            docker push "$target"
+            refs+=("$(docker image inspect "$target" --format '{{index .RepoDigests 0}}')")
+          done
+          docker buildx imagetools create --tag "$IMAGE_NAME:$build_tag" "${refs[@]}"
+          docker buildx imagetools inspect "$IMAGE_NAME:$build_tag" --raw > manifest.json
+          jq -e '[.manifests[].platform | .os + "/" + .architecture] | sort == ["linux/amd64", "linux/arm64"]' manifest.json
+          digest=$(docker buildx imagetools inspect "$IMAGE_NAME:$build_tag" --format '{{json .Manifest}}' | jq -r .digest)
+          test -n "$digest" && test "$digest" != null
+          docker buildx imagetools create \
+            --tag "$IMAGE_NAME:$MINIGO_VERSION" \
+            --tag "$IMAGE_NAME:v$MINIGO_VERSION" \
+            --tag "$IMAGE_NAME:sha-$GITHUB_SHA" \
+            --tag "$IMAGE_NAME:latest" "$IMAGE_NAME@$digest"
+          docker buildx imagetools inspect "$IMAGE_NAME:latest"
+          {
+            echo '### Published Minigo images'
+            echo "- Version: v$MINIGO_VERSION"
+            echo "- Source: $GITHUB_SHA"
+            echo "- Platforms: linux/amd64, linux/arm64"
+            echo "- Image: $IMAGE_NAME:latest"
+            echo "- Source tag: $IMAGE_NAME:sha-$GITHUB_SHA"
+            echo "- Build tag: $IMAGE_NAME:$build_tag"
+            echo "- Digest: $IMAGE_NAME@$digest"
+          } >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "Minigo $MINIGO_VERSION for Linux amd64 and arm64."
+            echo
+            echo "Docker image: $IMAGE_NAME:$MINIGO_VERSION"
+            echo "Digest: $IMAGE_NAME@$digest"
+            echo "Source: $GITHUB_SHA"
+          } > release-notes.md
+      - name: Publish the GitHub release
+        run: |
+          if ! gh release view "v$MINIGO_VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "v$MINIGO_VERSION" --repo "$GITHUB_REPOSITORY" \
+              --verify-tag --title "Minigo $MINIGO_VERSION" \
+              --generate-notes --notes-file release-notes.md
+          elif [ "$(gh release view "v$MINIGO_VERSION" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = true ]; then
+            gh release view "v$MINIGO_VERSION" --repo "$GITHUB_REPOSITORY" --json body --jq .body > combined-notes.md
+            printf '\n' >> combined-notes.md
+            cat release-notes.md >> combined-notes.md
+            gh release edit "v$MINIGO_VERSION" --repo "$GITHUB_REPOSITORY" --notes-file combined-notes.md --draft=false
+          fi
+
+  description:
+    name: Update Docker Hub description
+    needs: publish
+    uses: ./.github/workflows/dockerhub-description.yml
+    secrets:
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

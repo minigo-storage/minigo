@@ -215,12 +215,12 @@ func debugLogSummary(r *http.Request, rw *logger.ResponseWriter) {
 	if rw.Hijacked {
 		statusCode = "hijacked"
 	}
-	logger.Info(fmt.Sprintf("%s %s %s %s %dms", r.RemoteAddr, r.Method, r.URL, statusCode, time.Since(rw.StartTime).Milliseconds()))
+	logger.Info(fmt.Sprintf("%s %s %s %s %dms", r.RemoteAddr, r.Method, debugLogURL(r.URL), statusCode, time.Since(rw.StartTime).Milliseconds()))
 }
 
 func debugLogDetails(r *http.Request, rw *logger.ResponseWriter) {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("- Method/URL:       %s %s\n", r.Method, r.URL))
+	sb.WriteString(fmt.Sprintf("- Method/URL:       %s %s\n", r.Method, debugLogURL(r.URL)))
 	sb.WriteString(fmt.Sprintf("  Remote endpoint:  %s\n", r.RemoteAddr))
 	if rw.Hijacked {
 		sb.WriteString("  Status code:      <hijacked, probably a websocket>\n")
@@ -235,6 +235,22 @@ func debugLogDetails(r *http.Request, rw *logger.ResponseWriter) {
 	logger.Info(sb.String())
 }
 
+func debugLogURL(original *url.URL) string {
+	if original == nil {
+		return ""
+	}
+	redacted := *original
+	redacted.User = nil
+	redacted.Fragment = ""
+	redacted.RawFragment = ""
+	// Query strings may carry signed URLs, OAuth codes, or extension-specific
+	// credentials. Redact the whole query, including malformed query strings.
+	if redacted.RawQuery != "" {
+		redacted.RawQuery = "redacted"
+	}
+	return redacted.String()
+}
+
 func debugLogHeaders(sb *strings.Builder, h http.Header) {
 	keys := make([]string, 0, len(h))
 	for key := range h {
@@ -245,6 +261,13 @@ func debugLogHeaders(sb *strings.Builder, h http.Header) {
 	for _, key := range keys {
 		values := h[key]
 		for _, value := range values {
+			// Allow only diagnostic values. Unknown headers can contain credentials
+			// from a proxy or extension, so a sensitive-name denylist is insufficient.
+			switch strings.ToLower(key) {
+			case "content-type", "content-length", "content-encoding", "accept", "accept-encoding", "x-request-id", "x-amz-request-id":
+			default:
+				value = "[REDACTED]"
+			}
 			if !first {
 				sb.WriteString("                    ")
 			} else {

@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 """Keep raw image findings and record two explicit, source-reviewed assessments."""
+import argparse
 import json
 import pathlib
 import sys
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--directory", type=pathlib.Path, default=pathlib.Path("dist/security"))
+parser.add_argument("--check-only", action="store_true")
+parser.add_argument("architectures", nargs="+", choices=("amd64", "arm64"))
+args = parser.parse_args()
 unresolved = []
 reports = []
-for arch in sys.argv[1:]:
-    path = pathlib.Path(f"dist/security/image-{arch}.json")
+for arch in args.architectures:
+    path = args.directory / f"image-{arch}.json"
     raw = json.loads(path.read_text())
+    if not raw.get("Metadata", {}).get("ImageID") or not raw.get("Results"):
+        sys.exit(f"Incomplete scan: {path}")
     findings = []
     for result in raw.get("Results", []):
         for item in result.get("Vulnerabilities", []):
@@ -31,7 +39,8 @@ for arch in sys.argv[1:]:
     print(f"{arch}: {len(findings)} raw findings, {sum(f['assessment'] == 'unresolved' for f in findings)} unresolved")
     for finding in findings:
         print(f"  {finding['id']}: {finding['assessment']}")
-pathlib.Path("dist/security/image-assessment.json").write_text(json.dumps(reports, indent=2) + "\n")
+if not args.check_only:
+    (args.directory / "image-assessment.json").write_text(json.dumps(reports, indent=2) + "\n")
 if unresolved:
     print(json.dumps(unresolved, indent=2), file=sys.stderr)
     sys.exit(1)

@@ -2,7 +2,7 @@
 set -eu
 root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$root"
-export GOTOOLCHAIN="${GOTOOLCHAIN:-go1.27.2}"
+export GOTOOLCHAIN="${GOTOOLCHAIN:-go1.27.3}"
 export CGO_ENABLED=0
 unset GOOS GOARCH
 

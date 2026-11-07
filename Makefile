@@ -1,8 +1,10 @@
-.PHONY: help build images smoke preview security image-security compatibility reference-binaries reference-images reference-smoke
+.PHONY: help build images smoke hardened-smoke browser-test preview security image-security compatibility reference-binaries reference-images reference-smoke
 
 help:
 	@echo 'make build               Build the console and Minigo Linux amd64/arm64 binaries'
 	@echo 'make images              Build and load local Minigo images'
+	@echo 'make hardened-smoke      Test non-root, read-only images with all capabilities dropped'
+	@echo 'make browser-test        Run desktop/mobile journeys against a disposable image'
 	@echo 'make smoke               Execute both Minigo architectures with real mc operations'
 	@echo 'make compatibility       Run existing-volume image-swap acceptance tests'
 	@echo 'make preview             Start a persistent LAN-accessible local console'
@@ -20,6 +22,12 @@ images: build
 
 smoke:
 	MINIGO_IMAGE_PREFIX=minigo ./scripts/smoke-reference.sh
+
+hardened-smoke:
+	./scripts/smoke-hardened.sh
+
+browser-test:
+	./scripts/test-console-browser.sh
 
 compatibility:
 	./scripts/test-compatibility.sh

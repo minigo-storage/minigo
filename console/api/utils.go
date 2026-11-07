@@ -23,6 +23,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -157,6 +158,16 @@ func UniqueKeys(a []string) []string {
 	return list
 }
 
+// Only operator-controlled configuration determines proxy TLS. Request headers
+// are untrusted and must not change cookie security on a direct HTTP deployment.
+func secureConsoleCookies() bool {
+	if len(GlobalPublicCerts) > 0 {
+		return true
+	}
+	publicURL, err := url.Parse(getConsoleBrowserRedirectURL())
+	return err == nil && publicURL.Scheme == "https" && publicURL.Host != ""
+}
+
 func NewSessionCookieForConsole(token string) http.Cookie {
 	sessionDuration := xjwt.GetConsoleSTSDuration()
 	return http.Cookie{
@@ -166,9 +177,7 @@ func NewSessionCookieForConsole(token string) http.Cookie {
 		MaxAge:   int(sessionDuration.Seconds()), // default 1 hr
 		Expires:  time.Now().Add(sessionDuration),
 		HttpOnly: true,
-		// if len(GlobalPublicCerts) > 0 is true, that means Console is running with TLS enable and the browser
-		// should not leak any cookie if we access the site using HTTP
-		Secure: len(GlobalPublicCerts) > 0,
+		Secure:   secureConsoleCookies(),
 		// read more: https://web.dev/samesite-cookies-explained/
 		SameSite: http.SameSiteLaxMode,
 	}
@@ -182,9 +191,7 @@ func ExpireSessionCookie() http.Cookie {
 		MaxAge:   -1,
 		Expires:  time.Now().Add(-100 * time.Hour),
 		HttpOnly: true,
-		// if len(GlobalPublicCerts) > 0 is true, that means Console is running with TLS enable and the browser
-		// should not leak any cookie if we access the site using HTTP
-		Secure: len(GlobalPublicCerts) > 0,
+		Secure:   secureConsoleCookies(),
 		// read more: https://web.dev/samesite-cookies-explained/
 		SameSite: http.SameSiteLaxMode,
 	}

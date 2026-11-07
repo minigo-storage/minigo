@@ -40,9 +40,12 @@ behavior and are only test oracles.
 complete frontend lockfile. The inherited Go dependency graph was updated,
 including networking/cryptography, gRPC, telemetry, MQTT, AMQP, Thrift and other
 flagged libraries. Both the server and bundled `mc` use this patched graph and
-Go 1.27.2. No new production Go library was added for the console API extensions.
+Go 1.27.3. No new production Go library was added for the console API extensions.
 
-`make image-security` retains full image reports and fails on unassessed findings.
+`make image-security` runs locally only for focused security updates, retains full
+image reports and SBOMs, and fails on unassessed findings. It refuses GitHub
+Actions runners. Security release promotion verifies the exact CI-built image
+archives against those local reports; see [publication](publishing.md).
 Full image reports include OS packages and both Go binaries, at all severities,
 including unfixed findings. Two scanner entries need explicit interpretation:
 
@@ -72,3 +75,38 @@ TLS/origin tests, full console API tests, native backend tests, browser journeys
 and the same-volume suite complement scanners. Remaining qualification gaps
 include distributed disk/host failures, cluster upgrades, KMS and replication
 integration, exhaustive IAM policy combinations, and production load/soak tests.
+
+## Restricted runtime profile
+
+The image retains its existing default user and entrypoint so a patch update does
+not silently change ownership requirements on existing volumes. The following
+profile is tested on both architectures; `/data` must already be accessible to
+UID/GID 1000. Provide credentials through your existing secret configuration.
+
+```sh
+docker run --user 1000:1000 --read-only --cap-drop ALL \
+  --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,noexec,nosuid,nodev,mode=1777 \
+  -e HOME=/tmp -e MINIO_UPDATE=off \
+  -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD \
+  -v minigo-data:/data minigostorage/minigo:3.0.1 \
+  server /data --certs-dir /tmp/certs --console-address :9001
+```
+
+Mount production TLS certificates read-only and point `--certs-dir` to that
+mount. Writable temporary state belongs under `/tmp`; object data remains in the
+persistent data mount. The Helm chart supplies equivalent security settings and
+mounts, retaining its existing UID/GID 1000.
+
+## Console logging and proxy cookies
+
+Debug logging redacts all query values and all header values except a small set
+of diagnostic fields. Authentication headers, cookies, encryption keys and custom
+proxy credentials are not written to debug logs. HTTP request/response objects
+are not modified by logging.
+
+Set `MINIO_BROWSER_REDIRECT_URL` to the public HTTPS URL when a proxy terminates
+TLS. Session and logout cookies then carry Secure even if the internal connection
+uses HTTP. Cookie security depends on operator-controlled configuration, never
+untrusted forwarding headers. Direct TLS also sets Secure; local HTTP remains
+supported.
