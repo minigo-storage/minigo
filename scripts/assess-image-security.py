@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keep raw image findings and record two explicit, source-reviewed assessments."""
+"""Keep raw image findings and record explicit, source-reviewed assessments."""
 import argparse
 import json
 import pathlib
@@ -24,9 +24,7 @@ for arch in args.architectures:
             package = item["PkgName"]
             target = result["Target"]
             reason = None
-            if (issue, package) == ("GO-2026-5932", "golang.org/x/crypto") and target in ("usr/bin/minio", "usr/bin/mc"):
-                reason = "OpenPGP is not imported; architecture dependency check and govulncheck must remain clean."
-            elif (issue, package, target) == ("CVE-2026-39414", "github.com/minio/minio", "usr/bin/minio"):
+            if (issue, package, target) == ("CVE-2026-39414", "github.com/minio/minio", "usr/bin/minio"):
                 reason = "Locally fixed by bounded CSV reads; reader_limits_test.go covers plain/gzip and record boundaries."
             finding = {"id": issue, "package": package, "target": target,
                        "severity": item["Severity"], "assessment": reason or "unresolved"}

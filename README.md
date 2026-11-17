@@ -17,7 +17,7 @@ docker pull minigostorage/minigo:latest
 ```
 
 Versioned releases start at `3.0.0`; the current security release is available as
-`minigostorage/minigo:3.0.1`. Use the recorded image digest to pin a deployment. See
+`minigostorage/minigo:3.0.2`. Use the recorded image digest to pin a deployment. See
 [image publication](docs/publishing.md) for tags, checks and the release workflow.
 
 ## Contact and contributions
@@ -34,7 +34,7 @@ For security concerns, follow the [security policy](SECURITY.md).
 
 ## Build and run
 
-Requires Go (the scripts select Go 1.27.3), Node.js 24.22.2 (`.nvmrc`), npm, Git, Make and Docker
+Requires Go (the scripts select Go 1.27.4), Node.js 24.22.3 (`.nvmrc`), npm, Git, Make and Docker
 with Buildx/Compose. First builds need network access for pinned Go/npm modules,
 the digest-pinned Alpine base, and current OS security packages. No MinIO image
 registry or discontinued binary download is needed to build Minigo.

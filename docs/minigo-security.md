@@ -40,22 +40,25 @@ behavior and are only test oracles.
 complete frontend lockfile. The inherited Go dependency graph was updated,
 including networking/cryptography, gRPC, telemetry, MQTT, AMQP, Thrift and other
 flagged libraries. Both the server and bundled `mc` use this patched graph and
-Go 1.27.3. No new production Go library was added for the console API extensions.
+Go 1.27.4. No new production Go library was added for the console API extensions.
 
 `make image-security` runs locally only for focused security updates, retains full
 image reports and SBOMs, and fails on unassessed findings. It refuses GitHub
 Actions runners. Security release promotion verifies the exact CI-built image
 archives against those local reports; see [publication](publishing.md).
 Full image reports include OS packages and both Go binaries, at all severities,
-including unfixed findings. Two scanner entries need explicit interpretation:
+including unfixed findings. One scanner entry needs explicit interpretation:
 
-- `GO-2026-5932` describes the unmaintained `golang.org/x/crypto/openpgp` package.
-  The parent module is used for other cryptography, but OpenPGP is not imported
-  by either shipped program. `govulncheck` reports it only at module level.
 - A version-only scanner still identifies this fork as `github.com/minio/minio`
   and reports CVE-2026-39414 without recognizing the local bounded-reader patch.
   Keep the raw finding and the regression evidence; do not treat a renamed
   module or hidden finding as remediation.
+
+The console build pins Node.js 24.22.3. Its picomatch dependency has no upstream
+release addressing GHSA-fc5q-39xc-vjpf. The install script verifies the parser
+checksum and disables repeated extglobs before regex compilation. The complete
+lockfile audit checks this guard and the exact advisory and dependency paths.
+The production dependency audit runs separately and must pass.
 
 Scan results are time-specific, not a security warranty. Changes to these
 assessments require renewed source/reachability review. Public exposure, external
@@ -89,7 +92,7 @@ docker run --user 1000:1000 --read-only --cap-drop ALL \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,mode=1777 \
   -e HOME=/tmp -e MINIO_UPDATE=off \
   -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD \
-  -v minigo-data:/data minigostorage/minigo:3.0.1 \
+  -v minigo-data:/data minigostorage/minigo:3.0.2 \
   server /data --certs-dir /tmp/certs --console-address :9001
 ```
 

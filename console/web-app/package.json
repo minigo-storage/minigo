@@ -1,10 +1,11 @@
 {
   "name": "minigo-console",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "private": true,
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/guard-picomatch.mjs",
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",

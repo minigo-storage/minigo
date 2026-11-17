@@ -7,7 +7,7 @@ if [ "${GITHUB_ACTIONS:-false}" = true ]; then
 fi
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$root"
-export GOTOOLCHAIN=${GOTOOLCHAIN:-go1.27.3}
+export GOTOOLCHAIN=${GOTOOLCHAIN:-go1.27.4}
 export CGO_ENABLED=0
 mkdir -p "${MINIGO_SCAN_DIR:-dist/security}"
 report_dir=$(cd "${MINIGO_SCAN_DIR:-dist/security}" && pwd)
@@ -15,7 +15,7 @@ scanner=$(python3 -c 'import runpy; print(runpy.run_path("scripts/release-artifa
 for arch in ${MINIGO_ARCHES:-amd64 arm64}; do
     case "$arch" in amd64|arm64) ;; *) echo 'Unsupported architecture' >&2; exit 1 ;; esac
     dependencies=$(GOOS=linux GOARCH="$arch" go list -mod=readonly -tags=kqueue -deps . github.com/minio/mc)
-    case "$dependencies" in *golang.org/x/crypto/openpgp*) echo 'OpenPGP is imported; the existing assessment is invalid.' >&2; exit 1 ;; esac
+    case "$dependencies" in *golang.org/x/crypto/openpgp*) echo 'The unsupported OpenPGP package is imported.' >&2; exit 1 ;; esac
     if [ -n "${MINIGO_ARCHIVE_ROOT:-}" ]; then
         archive="$(cd "$MINIGO_ARCHIVE_ROOT/minigo-image-$arch" && pwd)/image.tar.gz"
     else
