@@ -12,7 +12,8 @@ LABEL org.opencontainers.image.title="Minigo" \
 
 # The Go binaries are static. Keep the original shell/curl/GNU chroot contract
 # without carrying UBI's package-manager stack and its unpatched dependencies.
-RUN apk upgrade --no-cache && apk add --no-cache bash ca-certificates coreutils curl
+RUN apk upgrade --no-cache && apk add --no-cache bash ca-certificates coreutils curl \
+    'libcrypto3>=3.5.9-r1' 'libssl3>=3.5.9-r1'
 ENV MINIO_ACCESS_KEY_FILE=access_key \
     MINIO_SECRET_KEY_FILE=secret_key \
     MINIO_ROOT_USER_FILE=access_key \

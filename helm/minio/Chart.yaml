@@ -1,8 +1,8 @@
 apiVersion: v1
 description: Minigo S3-compatible object storage
 name: minio
-version: 5.4.2
-appVersion: "3.0.2"
+version: 5.4.3
+appVersion: "3.0.3"
 keywords:
   - minio
   - storage
