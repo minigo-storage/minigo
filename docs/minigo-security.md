@@ -92,7 +92,7 @@ docker run --user 1000:1000 --read-only --cap-drop ALL \
   --tmpfs /tmp:rw,noexec,nosuid,nodev,mode=1777 \
   -e HOME=/tmp -e MINIO_UPDATE=off \
   -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD \
-  -v minigo-data:/data minigostorage/minigo:3.0.2 \
+  -v minigo-data:/data minigostorage/minigo:3.0.3 \
   server /data --certs-dir /tmp/certs --console-address :9001
 ```
 

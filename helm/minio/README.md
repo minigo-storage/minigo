@@ -1,9 +1,9 @@
 # Minigo Helm chart
 
 This chart retains the upstream `minio` chart/resource naming for upgrade
-compatibility and deploys `minigostorage/minigo:3.0.2` for both the storage server
+compatibility and deploys `minigostorage/minigo:3.0.3` for both the storage server
 and `mc` setup jobs. Install it from this repository; the upstream Helm repository
-does not distribute this fork. Chart version: 5.4.2.
+does not distribute this fork. Chart version: 5.4.3.
 
 Supply a Kubernetes Secret with `rootUser` and `rootPassword` keys containing
 unique credentials, and review storage and topology values before installation:

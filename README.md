@@ -17,7 +17,7 @@ docker pull minigostorage/minigo:latest
 ```
 
 Versioned releases start at `3.0.0`; the current security release is available as
-`minigostorage/minigo:3.0.2`. Use the recorded image digest to pin a deployment. See
+`minigostorage/minigo:3.0.3`. Use the recorded image digest to pin a deployment. See
 [image publication](docs/publishing.md) for tags, checks and the release workflow.
 
 ## Contact and contributions
